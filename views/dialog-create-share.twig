@@ -1,0 +1,51 @@
+{% extends "flm::dialog-window.twig" %}
+{% import "flm::dialog-window.twig" as window %}
+
+{% block content %}
+    {{ window.pathBrowser(selectedTarget, theUILang.FSfile) }}
+
+    <fieldset>
+        <legend>Options:</legend>
+
+
+        <table border="0" cellspacing="0" cellpadding="0">
+            <tr>
+                <td>{{ theUILang.FSdhours }}:</td>
+                <td align="right"><label><input type="text" name="FS_duration" id="FS_duration"
+                                                class="Textbox"/></label></td>
+            </tr>
+            <tr>
+                <td>{{ theUILang.FSpassword }}:</td>
+                <td align="right"><label><input name="FS_password" type="text" id="FS_password" class="Textbox"/>
+                    </label><input name="FS_lid" type="hidden" id="FS_lid" value=""/></td>
+            </tr>
+        </table>
+        <textarea name="FS_downlink" rows="2" style="width: 100%" readonly="readonly" id="FS_downlink"></textarea>
+    </fieldset>
+
+{% endblock %}
+{% block buttons %}
+    <div class="aright buttons-list">
+        <input type="button" class="flm-diag-start Button" id="FS_addbut" value="{{ theUILang.FSadd }}"
+               disabled="disabled"/>
+        <input type="button" id="FS_editbut" class="Button" value="{{ theUILang.FSedit }}" style="display: none;"/>
+        <input type="button" class="flm-diag-cancel Button"
+               value="{{ closeButtonValue is defined ? closeButtonValue : theUILang.fDiagClose }}"/>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+
+    <script>
+
+        $('#FS_addbut').click(function () {
+            theWebUI.FS.add(this);
+        });
+        $('#FS_editbut').click(function () {
+            theWebUI.FS.edit(this);
+        });
+        $('#FS_refresh').click(function () {
+            theWebUI.FS.refresh();
+        });
+    </script>
+{% endblock %}
