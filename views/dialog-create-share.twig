@@ -6,13 +6,11 @@
 
     <fieldset>
         <legend>Options:</legend>
-
-
         <table border="0" cellspacing="0" cellpadding="0">
             <tr>
                 <td>{{ theUILang.FSdhours }}:</td>
                 <td align="right"><label><input type="text" name="FS_duration" id="FS_duration"
-                                                class="Textbox"/></label></td>
+                                                class="Textbox" value="{{ plugin.config.limits.duration }}"/></label></td>
             </tr>
             <tr>
                 <td>{{ theUILang.FSpassword }}:</td>
@@ -20,7 +18,9 @@
                     </label><input name="FS_lid" type="hidden" id="FS_lid" value=""/></td>
             </tr>
         </table>
+{#
         <textarea name="FS_downlink" rows="2" style="width: 100%" readonly="readonly" id="FS_downlink"></textarea>
+#}
     </fieldset>
 
 {% endblock %}
@@ -37,15 +37,19 @@
 {% block scripts %}
 
     <script>
+        var dialogs = flm.ui.getDialogs();
+        var diagId = dialogs.getDialogId('flm-create-share');
+        dialogs.setDirBrowser(diagId, true);
 
-        $('#FS_addbut').click(function () {
-            theWebUI.FS.add(this);
+        dialogs.onStart(function () {
+
+            return flm.share.add(
+                dialogs.getTargetPath(diagId),
+                $('#FS_password').val(),
+                $('#FS_duration').val()
+            );
         });
-        $('#FS_editbut').click(function () {
-            theWebUI.FS.edit(this);
-        });
-        $('#FS_refresh').click(function () {
-            theWebUI.FS.refresh();
-        });
+
+
     </script>
 {% endblock %}

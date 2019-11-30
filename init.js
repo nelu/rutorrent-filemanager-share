@@ -1,126 +1,177 @@
 
 plugin.loadCSS('share');
 
-plugin.setMenuEntries = function (menu, path) {
+var table = {
 
-	var pathIsDir = flm.utils.isDir(path);
+	addEntry: function(data) {
 
-	if(plugin.enabled) {
+		var table = theWebUI.getTable("fsh");
+		table.clearRows();
 
-		var ext = flm.utils.getExt(path);
+		$.each(data.list, function(ndx,item) {
 
-		var el = theContextMenu.get( theUILang.fcreate );
-		if(el) {
-			theContextMenu.add( el, [theUILang.FSshare, (!pathIsDir
-				&& !theWebUI.FS.islimited(theWebUI.FS.maxlinks, theWebUI.getTable("fsh").rows))
-				? function() {
+			table.addRowById({
+				name: item.file,
+				size: item.size,
+				time: item.expire,
+				link: flm.share.downlink+'?uh='+encodeURIComponent(data.uh)+'&s='+ndx
+			}, "_fsh_"+ndx, 'Icon_File');
+		});
 
+		table.refreshRows();
+	},
 
-					flm.ui.getDialogs().showDialog('flm-create-share');
+	entryMenu: function(e, id) {
 
+		if($type(id) && (e.button == 2)) {
 
-					theWebUI.FS.show(path, 'add');
+			theContextMenu.clear();
 
+			var table = theWebUI.getTable("fsh");
+			var target = id.split('_fsh_')[1];
+
+			if(table.selCount == 1) {
+				var link = theWebUI.getTable("fsh").getValueById('_fsh_'+target, 'link');
+				ZeroClipboard.setData("text/plain", link);
 			}
-				: null]);
+
+			theContextMenu.add([theUILang.fDelete, function() {askYesNo(theUILang.FSdel, theUILang.FSdelmsg, "flm.share.del()" );}]);
+			theContextMenu.add([theUILang.FSedit, (table.selCount > 1) ? null : function() {flm.share.show(target, 'edit');}]);
+			theContextMenu.add([CMENU_SEP]);
+			theContextMenu.add([theUILang.FScopylink,(table.selCount > 1) ? null : function() {}]);
+
+			theContextMenu.show();
+
+			if(table.selCount == 1) {
+				var copyBtn = theContextMenu.get(theUILang.FScopylink)[0];
+				new ZeroClipboard(copyBtn);
+			}
+
+			return(true);
 		}
+		return(false);
+	},
+
+	format: function(table,arr) {
+		for(var i in arr)
+		{
+			if(arr[i]==null)
+				arr[i] = '';
+			else
+				switch(table.getIdByCol(i)) {
+					case 'size' :
+						arr[i] = theConverter.bytes(arr[i], 2);
+						break;
+					case 'time':
+						arr[i] = theConverter.date(iv(arr[i])+theWebUI.deltaTime/1000);
+						break;
+				}
+		}
+		return(arr);
+	},
+
+	updateColumnNames: function() {
+		var table = theWebUI.getTable("fsh");
+
+		table.renameColumnById('time',theUILang.FSexpire);
+		table.renameColumnById('name',theUILang.FSfile);
+		table.renameColumnById('link',theUILang.FSdlink);
 
 	}
-
 };
 
-plugin.setUI = function(flmUi) {
+table.create =  function () {
+	plugin.attachPageToTabs($('<div>').attr("id","FileShare").addClass('table_tab').get(0),'FileShare');
 
-	var viewsPath = plugin.path + 'views/';
-
-	flm.views.namespaces['flm-share'] = viewsPath;
-
-	flmUi.getDialogs().forms['flm-create-share'] = {
-		options: {
-		//	public_endpoint: plugin.config.public_endpoint,
-			views: "flm-media"
-		},
-		modal: false,
-		template: viewsPath + "dialog-create-share"
+	theWebUI.tables.fsh = {
+		obj: new dxSTable(),
+		columns:
+			[
+				{ text: '',			width: "210px", id: "name",		type: TYPE_STRING },
+				{ text: theUILang.Size,			width: "60px",	id: "size",		type: TYPE_NUMBER },
+				{ text: '', 			width: "120px", 	id: "time",		type: TYPE_STRING, 	"align" : ALIGN_CENTER},
+				{ text: '',			width: "310px",	id: "link",		type: TYPE_STRING }
+			],
+		container:	"FileShare",
+		format:		table.format,
+		onselect:	function(e,id) { table.entryMenu(e,id); }
 	};
 
-	window.flm.ui.browser.onSetEntryMenu(plugin.setMenuEntries);
-
-	plugin.attachPageToTabs($('<div>').attr("id","FileShare").addClass('table_tab').get(0), theUILang.FSshow);
-	$('#tab_lcont').append('<input type="button" id="FS_refresh" class="Button" value="'+theUILang.fRefresh+'" style="display: none;">');
 
 };
 
-
 var share = {
+
+	api: null,
 
 	downlink: '',
 	clip: {},
 
-	add: function (button) {
+	add: function (file, pass, duration) {
 
-		var file = $('#FS_file').val();
-		var duration = $('#FS_duration').val();
-		var password = $('#FS_password').val();
-		var maxduration = parseFloat(this.maxdur);
-		var allownolimit = parseFloat(this.nolimit);
+		var maxduration = parseFloat(plugin.config.maxdur);
+		var allownolimit = parseFloat(plugin.config.nolimit);
 
-		if(!duration.match(/^\d+$/)) {alert(theUILang.FSvdur); return false;}
-		if(allownolimit == 0) {
-			if(duration == 0) {alert(theUILang.FSnolimitoff); return false;}
-			if(this.islimited(maxduration, duration)) {alert(theUILang.FSmaxdur+' '+this.maxdur); return false;}
-		} else {
-			if(this.islimited(maxduration, duration)) {alert(theUILang.FSmaxdur+' '+this.maxdur+' '+theUILang.FSnolimit); return false;}
+
+		var deferred = $.Deferred();
+		//flm.manager.logStart(theUILang.fStarts.archive);
+
+		if(!$type(file) || file.length === 0)
+		{
+			deferred.reject('Empty paths');
+			return deferred.promise();
 		}
-		$(button).attr('disabled',true);
 
-		this.query('action=add&file='+encodeURIComponent(file)+'&to='+encodeURIComponent(password)+'&target='+encodeURIComponent(duration),
+		if (flm.utils.isDir(file)) {
+			deferred.reject( theUILang.fDiagInvalidname);
+			return deferred.promise();
+		}
+
+		if(!duration.match(/^\d+$/))
+		{
+			deferred.reject( theUILang.FSvdur);
+			return deferred.promise();
+		} else if(allownolimit === 0 && duration === 0)
+		{
+			deferred.reject( theUILang.FSnolimitoff);
+			return deferred.promise();
+		}
+		else if(this.islimited(duration))
+		{
+			deferred.reject(theUILang.FSmaxdur+' '+this.maxdur);
+			return deferred.promise();
+		}
+
+		flm.manager.logAction(theUILang.FSshow, theUILang.FSlinkcreate);
+
+		return this.api.post({method: 'add', target:file, pass: pass, duration: duration});
+
+
+		this.query('action=add&file='+encodeURIComponent(file)+
+			'&to='+encodeURIComponent(password)+'&target='+encodeURIComponent(duration),
 				function() {	theDialogManager.hide('FS_main');
 						log(theUILang.FSshow+': '+theUILang.FSlinkcreate);
 		});
 	},
 
-	edit: function (button) {
+	del: function (entries) {
 
-		var duration = $('#FS_duration').val();
-		var password = $('#FS_password').val();
-		var linkid = $('#FS_lid').val();
-                var maxduration = parseFloat(this.maxdur);
-		var allownolimit = parseFloat(this.nolimit);
+		var deferred = $.Deferred();
+		//flm.manager.logStart(theUILang.fStarts.archive);
 
-		if($.trim(duration) != '') {
-			if (!duration.match(/^\d+$/)) {alert(theUILang.FSvdur); return false;}
-			if(allownolimit == 0) {
-				if(duration == 0) {alert(theUILang.FSnolimitoff); return false;}
-				if(this.islimited(maxduration, duration)) {alert(theUILang.FSmaxdur+' '+this.maxdur); return false;}
-			} else {
-				if(this.islimited(maxduration, duration)) {alert(theUILang.FSmaxdur+' '+this.maxdur+' '+theUILang.FSnolimit); return false;}
-			}
+		if(!$type(entries) || entries.length === 0)
+		{
+			deferred.reject('Empty paths');
+			return deferred.promise();
 		}
-		$(button).attr('disabled',true);
-
-		this.query('action=edit&file='+encodeURIComponent(linkid)+'&to='+encodeURIComponent(password)+(duration ? '&target='+encodeURIComponent(duration) : ''),
-				function() {	theDialogManager.hide('FS_main');
-						log(theUILang.FSshow+': '+theUILang.FSlinkedit);
-		});
+		return this.api.post({method: 'del', entries: entries});
 	},
 
-	del: function () {
-		
-		var sr = theWebUI.getTable("fsh").rowSel;
-		var list = {};
+	islimited: function (cur) {
 
-		var x = 0;
-		for (i in sr) {
-			var id = i.split('_fsh_')[1];
-			if (sr[i]) {list[x] = id; x++;}
-		}
+		var max = plugin.config.maxlinks;
 
-		this.query('action=del&target='+theWebUI.fManager.encode_string(list));
-
-	},
-
-	islimited: function (max, cur) {return (max > 0) ? ((cur <= max) ? false : true) : false;},
+		return (max > 0) ? ((cur <= max) ? false : true) : false;},
 
 	show: function (what, how) { 
 
@@ -157,170 +208,78 @@ var share = {
 		$('#FS_file').val(file);
 	},
 
-	refresh: function() {theWebUI.FS.query('action=list');},
-
-	resize: function (w, h) {
-
-		if(w!==null) {w-=8;}
-
-		if(h!==null) {
-			h-=($("#tabbar").height());
-			h-=2;
-        	}
-
-		var table = theWebUI.getTable("fsh");
-		if(table) {table.resize(w,h);}
-	},
+	refresh: function() {flm.share.query('action=list');},
 
 
-	rename: function() {
-		var table = theWebUI.getTable("fsh");
-		if(table.created && plugin.allStuffLoaded) {
 
-			table.renameColumnById('time',theUILang.FSexpire);
-			table.renameColumnById('name',theUILang.FSfile);
-			table.renameColumnById('pass',theUILang.FSpassword);
-			table.renameColumnById('link',theUILang.FSdlink);
+	init: function () {
+		this.api = flm.client(plugin.path+'fsh.php');
+	}
 
-		} else { setTimeout(arguments.callee,1000);}
+};
 
-	},
+plugin.setMenuEntries = function (menu, path) {
 
-	tableadd: function(data) { 
+	var pathIsDir = flm.utils.isDir(path);
 
-		var table = theWebUI.getTable("fsh");
-		table.clearRows();
+	if(plugin.enabled) {
 
-		$.each(data.list, function(ndx,item) {
-   			 
-				table.addRowById({
-					name: item.file,
-					size: item.size,
-					time: item.expire,
-					pass: item.password,
-					link: theWebUI.FS.downlink+'?uh='+encodeURIComponent(data.uh)+'&s='+ndx
-				}, "_fsh_"+ndx, 'Icon_File');
-		});
-		
-		table.refreshRows();
-	},
+		var ext = flm.utils.getExt(path);
 
-	tablecreate: function () {
+		var el = theContextMenu.get( theUILang.fcreate );
+		if(el) {
+			theContextMenu.add( el, [theUILang.FSshare, (!pathIsDir
+				&& !flm.share.islimited(theWebUI.getTable("fsh").rows))
+				? function() {
+					flm.ui.getDialogs().showDialog('flm-create-share');
+					flm.share.show(path, 'add');
 
-		theWebUI.tables.fsh = {
-			obj: new dxSTable(),
-			columns:
-			[
-				{ text: '',			width: "210px", id: "name",		type: TYPE_STRING },
-				{ text: theUILang.Size,			width: "60px",	id: "size",		type: TYPE_NUMBER },
-				{ text: '', 			width: "120px", 	id: "time",		type: TYPE_STRING, 	"align" : ALIGN_CENTER},
-				{ text: '',			width: "80px", 	id: "pass",		type: TYPE_STRING },
-				{ text: '',			width: "310px",	id: "link",		type: TYPE_STRING }
-			],
-			container:	"FileShare",
-			format:		theWebUI.FS.tableformat,
-			onselect:	function(e,id) { theWebUI.FS.tablemenu(e,id); }
-		};
-
-
-	},
-
-
-	tableformat: function(table,arr) {
-		for(var i in arr)
-		{
-			if(arr[i]==null)
-				arr[i] = '';
-			else
-   			switch(table.getIdByCol(i)) {
-      				case 'size' : 
-      					arr[i] = theConverter.bytes(arr[i], 2);
-      					break;
-				case 'time':
-					arr[i] = theConverter.date(iv(arr[i])+theWebUI.deltaTime/1000);
-					break;
-	      		}
-	   	}
-		return(arr);
-	},
-
-	tablemenu: function(e, id) {
-
-		if($type(id) && (e.button == 2)) {
-
-			theContextMenu.clear();
-
-			var table = theWebUI.getTable("fsh");
-			var target = id.split('_fsh_')[1];
-
-			if(table.selCount == 1) {
-				var link = theWebUI.getTable("fsh").getValueById('_fsh_'+target, 'link');
-				ZeroClipboard.setData("text/plain", link);
-			}
-
-			theContextMenu.add([theUILang.fDelete, function() {askYesNo(theUILang.FSdel, theUILang.FSdelmsg, "theWebUI.FS.del()" );}]);
-			theContextMenu.add([theUILang.FSedit, (table.selCount > 1) ? null : function() {theWebUI.FS.show(target, 'edit');}]);
-			theContextMenu.add([CMENU_SEP]);
-			theContextMenu.add([theUILang.FScopylink,(table.selCount > 1) ? null : function() {}]);
-
-	   		theContextMenu.show();
-
-			if(table.selCount == 1) {
-				var copyBtn = theContextMenu.get(theUILang.FScopylink)[0];
-				new ZeroClipboard(copyBtn);
-			}
-
-			return(true);
+				}
+				: null]);
 		}
-		return(false);
-	},
-
-
-	query: function(action, complete, err) {
-
-
-			$.ajax({
-  				type: 'POST',
-   				url: plugin.path + '/fsh.php',
-				timeout: theWebUI.settings["webui.reqtimeout"],
-			       async : true,
-			       cache: false,
-				data: action,
-   				dataType: "json",
-
-				error: function(XMLHttpRequest, textStatus, errorThrown) {
-					log('FILE SHARE: error - STATUS:'+textStatus+' MSG: '+XMLHttpRequest.responseText);			
-				},
-
-				success: function(data, textStatus) {if($type(complete)) {complete();}
-										theWebUI.FS.tableadd(data);}
- 		});
-
 
 	}
 
 };
 
-theWebUI.FS = share;
+plugin.setUI = function(flmUi) {
+
+	var viewsPath = plugin.path + 'views/';
+
+	flm.views.namespaces['flm-share'] = viewsPath;
+
+	flmUi.getDialogs().forms['flm-create-share'] = {
+		options: {
+			//	public_endpoint: plugin.config.public_endpoint,
+			views: "flm-media",
+			plugin: plugin
+		},
+		pathbrowse: false,
+		modal: false,
+		template: viewsPath + "dialog-create-share"
+	};
+
+	window.flm.ui.browser.onSetEntryMenu(plugin.setMenuEntries);
 
 
+	flm.views.getView(viewsPath + '/' +'table-header',{apiUrl: flm.api.endpoint},
+		function (view) {
 
-plugin.config = theWebUI.config;
+			$('#FileShare').prepend(view);
+		}
+	);
+
+
+	plugin.renameTab("FileShare",theUILang.FSshow);
+	table.updateColumnNames()
+};
+
+plugin.flmConfig = theWebUI.config;
 theWebUI.config = function(data) {
 
-		theWebUI.FS.tablecreate();
-		theWebUI.FS.rename();
-		plugin.config.call(this,data);
-}
-
-
-plugin.resizeBottom = theWebUI.resizeBottom;
-theWebUI.resizeBottom = function( w, h ) {
-
-		theWebUI.FS.resize(w, h);
-		plugin.resizeBottom.call(this,w,h);
-}
-
+		table.create();
+		plugin.flmConfig.call(this,data);
+};
 
 plugin.onShow = theTabs.onShow;
 theTabs.onShow = function(id) {
@@ -329,12 +288,12 @@ theTabs.onShow = function(id) {
 			$('#FS_refresh').show();
 			theWebUI.getTable('fsh').refreshRows();
 			theWebUI.resize();
-	} else {$('#FS_refresh').hide(); plugin.onShow.call(this,id);}
+	}
+	plugin.onShow.call(this,id);
 };
 
 plugin.onLangLoaded = function() {
 
-	injectScript(plugin.path + '/settings.js.php', function() {theWebUI.FS.refresh();});
 	injectScript(plugin.path + '/js/clip/ZeroClipboard.js', function() {
 								ZeroClipboard.config( { swfPath: plugin.path + '/js/clip/ZeroClipboard.swf', forceHandCursor: true } );
 								ZeroClipboard.on("copy", ZeroClipboard.blur);
@@ -347,6 +306,8 @@ plugin.onLangLoaded = function() {
 			.then(
 				function (flmUi) {
 					plugin.setUI(flmUi);
+					share.init();
+					flm.share = share;
 
 				//	window.flm.media = media;
 				},
@@ -364,6 +325,23 @@ plugin.onLangLoaded = function() {
 plugin.onRemove = function() {
 	this.removePageFromTabs('FileShare');
 	$('[id^="FS_"]').remove();
-}
+};
+
+
+plugin.resizeBottom = theWebUI.resizeBottom;
+theWebUI.resizeBottom = function( w, h ) {
+
+		if(w!==null) {w-=8;}
+
+		if(h!==null) {
+			h-=($("#tabbar").height());
+			h-=2;
+		}
+
+		var table = theWebUI.getTable("fsh");
+		if(table) {table.resize(w,h);}
+
+	plugin.resizeBottom.call(this,w,h);
+};
 
 plugin.loadLang();
