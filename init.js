@@ -1,9 +1,29 @@
 
 plugin.loadCSS('share');
 
+
+function copyTextToClipboard(text) {
+	var textArea = $("#flm-share-clipboard");
+
+	textArea.show();
+	textArea.val(text);
+	textArea.focus();
+	textArea.select();
+	var successful = false;
+	try {
+		successful = document.execCommand('copy');
+	} catch (err) {
+		console.log('Oops, unable to copy');
+	}
+
+	textArea.hide();
+
+	return successful;
+}
+
 var table = {
 
-	addEntry: function(data) {
+	addEntries: function(data) {
 
 		var table = theWebUI.getTable("fsh");
 		table.clearRows();
@@ -12,9 +32,10 @@ var table = {
 
 			table.addRowById({
 				name: item.file,
+				downloads: parseInt(item.size),
 				size: item.size,
 				time: item.expire,
-				link: flm.share.downlink+'?uh='+encodeURIComponent(data.uh)+'&s='+ndx
+				link: plugin.config.endpoint+'?uh='+encodeURIComponent(data.uh)+'&s='+ndx
 			}, "_fsh_"+ndx, 'Icon_File');
 		});
 
@@ -30,22 +51,23 @@ var table = {
 			var table = theWebUI.getTable("fsh");
 			var target = id.split('_fsh_')[1];
 
-			if(table.selCount == 1) {
-				var link = theWebUI.getTable("fsh").getValueById('_fsh_'+target, 'link');
-				ZeroClipboard.setData("text/plain", link);
+			if(table.selCount === 1) {
+				theContextMenu.add([theUILang.fView, function() {
+					var link = theWebUI.getTable("fsh").getValueById('_fsh_'+target, 'link');
+				}]);
+
 			}
 
-			theContextMenu.add([theUILang.fDelete, function() {askYesNo(theUILang.FSdel, theUILang.FSdelmsg, "flm.share.del()" );}]);
-			theContextMenu.add([theUILang.FSedit, (table.selCount > 1) ? null : function() {flm.share.show(target, 'edit');}]);
+			theContextMenu.add([theUILang.fDelete, function() {
+				askYesNo(theUILang.FSdel, theUILang.FSdelmsg, "flm.share.del()" );
+			}]);
 			theContextMenu.add([CMENU_SEP]);
-			theContextMenu.add([theUILang.FScopylink,(table.selCount > 1) ? null : function() {}]);
+			theContextMenu.add([theUILang.FScopylink,(table.selCount !== 1) ? null : function() {
+				var link = theWebUI.getTable("fsh").getValueById('_fsh_'+target, 'link');
+				copyTextToClipboard(link);
+			}]);
 
 			theContextMenu.show();
-
-			if(table.selCount == 1) {
-				var copyBtn = theContextMenu.get(theUILang.FScopylink)[0];
-				new ZeroClipboard(copyBtn);
-			}
 
 			return(true);
 		}
@@ -88,6 +110,7 @@ table.create =  function () {
 		columns:
 			[
 				{ text: '',			width: "210px", id: "name",		type: TYPE_STRING },
+				{ text: 'Downloads',			width: "65px",	id: "downloads",		type: TYPE_NUMBER },
 				{ text: theUILang.Size,			width: "60px",	id: "size",		type: TYPE_NUMBER },
 				{ text: '', 			width: "120px", 	id: "time",		type: TYPE_STRING, 	"align" : ALIGN_CENTER},
 				{ text: '',			width: "310px",	id: "link",		type: TYPE_STRING }
@@ -173,52 +196,29 @@ var share = {
 
 		return (max > 0) ? ((cur <= max) ? false : true) : false;},
 
-	show: function (what, how) { 
+	getEntries: function (what, how) {
 
-		var file;
-		var password;
+		return this.api.post({method: 'show'});
 
-		var edit = $('#FS_editbut');
-		var add = $('#FS_addbut');
-
-		switch(how) {
-
-			case 'edit':
-				var table = theWebUI.getTable("fsh");
-				file = table.getValueById('_fsh_'+what, 'name');
-				password = table.getValueById('_fsh_'+what, 'pass');
-				$('#FS_downlink').val(table.getValueById('_fsh_'+what, 'link')).show();
-				add.hide();
-				edit.show();
-				break;
-			case 'add':
-				file = theWebUI.fManager.homedir+theWebUI.fManager.curpath+what;
-				password = '';
-				$('#FS_downlink').hide();
-				edit.hide();
-				add.show();
-				break;
-		}
-
-		$('#FS_lid').val(what);
-		add.attr('disabled',false);
-		edit.attr('disabled',false);
-		$('#FS_duration').val('');
-		$('#FS_password').val(password);
-		$('#FS_file').val(file);
 	},
 
-	refresh: function() {flm.share.query('action=list');},
+	refresh: function() {
+		this.getEntries().then(function (response) {
+			table.addEntries(response);
+			return response;
+		}, function (reason) { return reason; });
 
-
+	},
 
 	init: function () {
 		this.api = flm.client(plugin.path+'fsh.php');
+
+		this.refresh();
 	}
 
 };
 
-plugin.setMenuEntries = function (menu, path) {
+plugin.setFileManagerMenuEntries = function (menu, path) {
 
 	var pathIsDir = flm.utils.isDir(path);
 
@@ -259,13 +259,20 @@ plugin.setUI = function(flmUi) {
 		template: viewsPath + "dialog-create-share"
 	};
 
-	window.flm.ui.browser.onSetEntryMenu(plugin.setMenuEntries);
+	window.flm.ui.browser.onSetEntryMenu(plugin.setFileManagerMenuEntries);
 
 
 	flm.views.getView(viewsPath + '/' +'table-header',{apiUrl: flm.api.endpoint},
 		function (view) {
 
 			$('#FileShare').prepend(view);
+
+			setTimeout(function () {
+				$('#FS_refresh').click(function () {
+					flm.share.refresh();
+				});
+			}, 100);
+
 		}
 	);
 
@@ -285,7 +292,6 @@ plugin.onShow = theTabs.onShow;
 theTabs.onShow = function(id) {
 
 	if(id == "FileShare") {
-			$('#FS_refresh').show();
 			theWebUI.getTable('fsh').refreshRows();
 			theWebUI.resize();
 	}
@@ -293,12 +299,6 @@ theTabs.onShow = function(id) {
 };
 
 plugin.onLangLoaded = function() {
-
-	injectScript(plugin.path + '/js/clip/ZeroClipboard.js', function() {
-								ZeroClipboard.config( { swfPath: plugin.path + '/js/clip/ZeroClipboard.swf', forceHandCursor: true } );
-								ZeroClipboard.on("copy", ZeroClipboard.blur);
-								new ZeroClipboard();
-							});
 
 	if(this.enabled) {
 		//onSetEntryMenu

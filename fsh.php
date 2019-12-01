@@ -21,27 +21,6 @@ error_reporting(E_ALL);
 include(dirname(__FILE__) . '/share.class.php');
 include(dirname(__FILE__) . '/conf.php');
 
+$c = new FileManagerShare(Helper::getConfig());
 
-
-$f = new FSHARE();
-
-switch($_POST['action']) {
-
-	case 'list':
-		$f->show();
-		break;
-	case 'del':
-		$f->del($f->postlist['target']);
-		$f->show();
-		break;
-	case 'add':
-		$f->add($f->postlist['file'], $f->postlist['target'], $f->postlist['to']);
-		$f->show();
-		break;
-	case 'edit':
-		$f->edit($f->postlist['file'], $f->postlist['target'], $f->postlist['to']);
-		$f->show();
-		break;
-	default: die('Invalid action');
-
-}
+$c->handleRequest();
