@@ -14,5 +14,7 @@ $downloadpath = '//'.$_SERVER['HTTP_HOST'].'/plugins/filemanager-share/share.php
 
 
 return ['limits' => $limits,
-        'endpoint' => $downloadpath
+        'endpoint' => $downloadpath,
+        "key" => "mycu570m3ncryp710nk3y"
+
 ];

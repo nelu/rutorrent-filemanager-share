@@ -1,9 +1,6 @@
 <?php
 
-use Flm\Filesystem as Fs;
 use Flm\Helper;
-use Flm\RemoteShell as Remote;
-use Flm\WebController;
 
 $flmPluginDir = dirname(__FILE__) . DIRECTORY_SEPARATOR . '../filemanager';
 
@@ -18,9 +15,10 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-include(dirname(__FILE__) . '/share.class.php');
-include(dirname(__FILE__) . '/conf.php');
+include(dirname(__FILE__) . '/src/Crypt.php');
+include(dirname(__FILE__) . '/src/FileManagerShare.php');
+$config = include(dirname(__FILE__) . '/conf.php');
 
-$c = new FileManagerShare(Helper::getConfig());
+$c = new FileManagerShare(array_merge(Helper::getConfig(), ['share' => $config]));
 
 $c->handleRequest();
