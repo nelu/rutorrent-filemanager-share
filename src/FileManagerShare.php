@@ -168,10 +168,11 @@ class FileManagerShare extends WebController {
         } else {
 
             $this->load($token)
-            && $this->data->downloads++
+            && ++$this->data->downloads
             && $this->write($token, (array)$this->data);
-            die();
         }
+        die();
+
     }
 
     public function del($input) {
