@@ -1,0 +1,32 @@
+{% extends "flm::dialog-window.twig" %}
+{% import "flm::dialog-window.twig" as window %}
+
+{% block content %}
+    <fieldset>
+        <textarea name="FS_downlink" rows="2" style="width: 100%" readonly="readonly" id="FS_downlink">{{ data.5 }}</textarea>
+
+        <table border="0" cellspacing="0" cellpadding="0">
+            <tr>
+                <td><label>Downloads:</label></td>
+                <td align="right">{{ data.1 }}</td>
+            </tr>
+            <tr>
+                <td><label>Expires at:</label></td>
+                <td align="right">{{ data.4 }}</td>
+            </tr>
+            <tr>
+                <td><label>File path:</label></td>
+                <td align="right">{{ data.0 }}</td>
+            </tr>
+        </table>
+
+
+    </fieldset>
+
+{% endblock %}
+{% block buttons %}
+    <div class="aright buttons-list">
+        <input type="button" class="flm-diag-cancel Button"
+               value="{{ closeButtonValue is defined ? closeButtonValue : theUILang.fDiagClose }}"/>
+    </div>
+{% endblock %}
