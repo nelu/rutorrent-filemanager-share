@@ -53,12 +53,13 @@ var table = {
 			var target = id.split('_fsh_')[1];
 
 			if(table.selCount === 1) {
-				theContextMenu.add([theUILang.fView, function() {
-					var link = theWebUI.getTable("fsh").getValueById('_fsh_'+target, 'link');
+				theContextMenu.add([theUILang['flm_popup_fsh-view'], function() {
+					plugin.showDialog('fsh-view', theWebUI.getTable("fsh").rowdata[id].fmtdata);
+
 				}]);
 
 				theContextMenu.add(['Show in File Manager', function() {
-					var file = theWebUI.getTable("fsh").getValueById('_fsh_'+target, 'file');
+					var file = theWebUI.getTable("fsh").getValueById(id, 'file');
 
 					flm.showPath(flm.utils.basedir(file));
 				}]);
@@ -252,7 +253,7 @@ plugin.setFileManagerMenuEntries = function (menu, path) {
 			menu[createPos][2].push([theUILang.FSshare, (!pathIsDir
 				&& !flm.share.islimited(theWebUI.getTable("fsh").rows))
 				? function() {
-					flm.ui.getDialogs().showDialog('flm-create-share');
+					plugin.showDialog('flm-create-share');
 				}
 				: null]);
 		}
@@ -261,21 +262,38 @@ plugin.setFileManagerMenuEntries = function (menu, path) {
 
 };
 
+plugin.showDialog = function(what, templateData)
+{
+	var dialogs = flm.ui.getDialogs();
+	dialogs.forms[what].options=  {
+			//	public_endpoint: plugin.config.public_endpoint,
+			views: "flm-share",
+			plugin: plugin,
+			data: templateData
+
+	};
+
+	return dialogs.showDialog(what);
+};
+
 plugin.setUI = function(flmUi) {
 
 	var viewsPath = plugin.path + 'views/';
 
 	flm.views.namespaces['flm-share'] = viewsPath;
 
-	flmUi.getDialogs().forms['flm-create-share'] = {
-		options: {
-			//	public_endpoint: plugin.config.public_endpoint,
-			views: "flm-media",
-			plugin: plugin
-		},
+	var forms = flmUi.getDialogs().forms;
+
+	forms['flm-create-share'] = {
 		pathbrowse: false,
 		modal: false,
 		template: viewsPath + "dialog-create-share"
+	};
+
+	forms['fsh-view'] = {
+		pathbrowse: false,
+		modal: false,
+		template: viewsPath + "dialog-view"
 	};
 
 	window.flm.ui.browser.onSetEntryMenu(plugin.setFileManagerMenuEntries);

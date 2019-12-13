@@ -1,5 +1,5 @@
 
-.sprite-flm-create-share {
+.sprite-flm-create-share, .sprite-fsh-view {
     background-image: url(images/icon.png) !important;
     background-repeat: no-repeat !important;
     display: block;
@@ -12,8 +12,10 @@ padding-top: 3px;
 padding-bottom: 3px;
 }
 
+/*
 
 ul.CMenu li.hover {background-color: #CFDEEF;}
 ul.CMenu li.hover a {color: #000000}
+*/
 
 
