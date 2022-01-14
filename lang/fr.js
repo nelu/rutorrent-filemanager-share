@@ -1,4 +1,7 @@
-﻿theUILang.FSshow		= 'File Share';
+﻿theUILang['flm_popup_flm-create-share'] =   'Create file share link';
+theUILang['flm_popup_fsh-view'] =   'View details';
+
+theUILang.FSshow		= 'File Share';
 theUILang.FSdel			= 'Supprimer le(s) liens(s)';
 theUILang.FSdelmsg		= 'Voulez-vous réellement supprimer ces éléments ?';
 theUILang.FSvdur		= 'Veuillez entrer une durée valide';

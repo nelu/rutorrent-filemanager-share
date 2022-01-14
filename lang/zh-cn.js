@@ -1,3 +1,6 @@
+theUILang['flm_popup_flm-create-share'] =   'Create file share link';
+theUILang['flm_popup_fsh-view'] =   'View details';
+
 theUILang.FSshow		= 'File Share';
 theUILang.FSdel			= 'Delete link(s)';
 theUILang.FSdelmsg		= 'Do you really want to delete the selected items?';
