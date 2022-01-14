@@ -8,7 +8,7 @@ class FileManagerShare extends WebController {
 
 	protected $datafile;
 	public $data = array();
-	private $limits;
+	//private $limits;
 
 	protected $storage;
 
@@ -16,7 +16,6 @@ class FileManagerShare extends WebController {
 
 
 	public function __construct($config) {
-        global $topDirectory;
 
 	    parent::__construct($config);
 
@@ -24,8 +23,6 @@ class FileManagerShare extends WebController {
 
 		$this->encoder = new Crypt();
 
-
-		//$this->check_post($this->postlist);
 	}
 
 	public function setEncryption() {
@@ -49,7 +46,7 @@ class FileManagerShare extends WebController {
 
 	protected function getShares()
     {
-            $path = getSettingsPath().'/' . __CLASS__;
+            $path = FileUtil::getSettingsPath().'/' . __CLASS__;
 
             $files = glob($path . DIRECTORY_SEPARATOR ."*.{dat}", GLOB_BRACE);
 
@@ -65,7 +62,7 @@ class FileManagerShare extends WebController {
 
                 $entry =  $this->read(self::getSharePath($id));
                 unset($entry->credentials);
-                $id = $this->encoder->setString(json_encode([getUser(), $id]))->getEncoded();
+                $id = $this->encoder->setString(json_encode([User::getUser(), $id]))->getEncoded();
                 $r[$id] = $entry;
             }
 
@@ -101,7 +98,7 @@ class FileManagerShare extends WebController {
             Crypt::setEncryptionKey($password);
         }
 
-        $this->encoder->setString(json_encode(['u' => getUser()]));
+        $this->encoder->setString(json_encode(['u' => User::getUser()]));
 
         $data = array(
             'file' => $file,
@@ -163,8 +160,8 @@ class FileManagerShare extends WebController {
             }
         }
 
-        if (!sendFile($this->data->file, null, null, false)) {
-            cachedEcho('Invalid file: " - ' . $this->data->file , "text/html");
+        if (!SendFile::send($this->data->file, null, null, false)) {
+            CachedEcho::send('Invalid file: " - ' . $this->data->file , "text/html");
         } else {
 
             $this->load($token)
@@ -210,7 +207,7 @@ class FileManagerShare extends WebController {
 		} else {
 			$this->data[$id]['password'] = $password;
 		}
-		$this->write();
+		//$this->write();
 	}
 
 	public function show() {

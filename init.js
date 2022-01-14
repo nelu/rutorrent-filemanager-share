@@ -285,6 +285,9 @@ plugin.setUI = function(flmUi) {
 	var forms = flmUi.getDialogs().forms;
 
 	forms['flm-create-share'] = {
+		options: {
+			views: "flm-share"
+		},
 		pathbrowse: false,
 		modal: false,
 		template: viewsPath + "dialog-create-share"
