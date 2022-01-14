@@ -16,3 +16,4 @@ theUILang.FScopylink		= 'Copy link';
 theUILang.FSmaxdur		= 'Maximum allowed duration is:';
 theUILang.FSnolimit		= '[No limit is allowed: 0]';
 theUILang.FSnolimitoff		= 'No limit is not allowed';
+thePlugins.get("filemanager-share").langLoaded();
