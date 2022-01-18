@@ -1,26 +1,6 @@
 
 plugin.loadCSS('share');
 
-
-function copyTextToClipboard(text) {
-	var textArea = $("#flm-share-clipboard");
-
-	textArea.show();
-	textArea.val(text);
-	textArea.focus();
-	textArea.select();
-	var successful = false;
-	try {
-		successful = document.execCommand('copy');
-	} catch (err) {
-		console.log('Oops, unable to copy');
-	}
-
-	textArea.hide();
-
-	return successful;
-}
-
 var table = {
 
 	addEntries: function(data) {
@@ -54,13 +34,12 @@ var table = {
 
 			if(table.selCount === 1) {
 				theContextMenu.add([theUILang['flm_popup_fsh-view'], function() {
-					plugin.showDialog('fsh-view', theWebUI.getTable("fsh").rowdata[id].fmtdata);
+					plugin.showDialog('fsh-view', table.rowdata[id].fmtdata);
 
 				}]);
 
-				theContextMenu.add(['Show in File Manager', function() {
-					var file = theWebUI.getTable("fsh").getValueById(id, 'file');
-
+				theContextMenu.add([theUILang['flm_popup_fsh-view-fm'], function() {
+					var file = table.getValueById(id, 'file');
 					flm.showPath(flm.utils.basedir(file));
 				}]);
 
@@ -83,9 +62,9 @@ var table = {
 				} );
 			}]);
 			theContextMenu.add([CMENU_SEP]);
-			theContextMenu.add([theUILang.FScopylink,(table.selCount !== 1) ? null : function() {
-				var link = theWebUI.getTable("fsh").getValueById('_fsh_'+target, 'link');
-				copyTextToClipboard(link);
+			theContextMenu.add([theUILang.FScopylink, (table.selCount !== 1) ? null : function() {
+				var link = table.getValueById(id, 'link');
+				copyToClipboard(link);
 			}]);
 
 			theContextMenu.show();
@@ -119,10 +98,11 @@ var table = {
 	updateColumnNames: function() {
 		var table = theWebUI.getTable("fsh");
 
+		table.renameColumnById('file',theUILang.FSfile);
+		table.renameColumnById('downloads',theUILang.FSdnumb);
+		table.renameColumnById('created',theUILang.FScreated);
 		table.renameColumnById('time',theUILang.FSexpire);
-		table.renameColumnById('name',theUILang.FSfile);
 		table.renameColumnById('link',theUILang.FSdlink);
-
 	}
 };
 
@@ -134,10 +114,10 @@ table.create =  function () {
 		columns:
 			[
 				{ text: '',			width: "210px", id: "file",		type: TYPE_STRING },
-				{ text: 'Downloads',			width: "65px",	id: "downloads",		type: TYPE_NUMBER },
-				{ text: theUILang.Size,			width: "60px",	id: "size",		type: TYPE_NUMBER },
-				{ text: 'Created', 			width: "120px", 	id: "created",		type: TYPE_DATE, 	"align" : ALIGN_CENTER},
-				{ text: '', 			width: "120px", 	id: "time",		type: TYPE_STRING, 	"align" : ALIGN_CENTER},
+				{ text: '',			width: "65px",	id: "downloads",	type: TYPE_NUMBER },
+				{ text: theUILang.Size,		width: "60px",	id: "size",		type: TYPE_NUMBER },
+				{ text: '', 			width: "120px",	id: "created",		type: TYPE_DATE, 	"align" : ALIGN_CENTER},
+				{ text: '', 			width: "120px",	id: "time",		type: TYPE_STRING, 	"align" : ALIGN_CENTER},
 				{ text: '',			width: "310px",	id: "link",		type: TYPE_STRING }
 			],
 		container:	"FileShare",
@@ -151,9 +131,6 @@ table.create =  function () {
 var share = {
 
 	api: null,
-
-	downlink: '',
-	clip: {},
 
 	add: function (file, pass, duration) {
 
@@ -240,7 +217,7 @@ var share = {
 
 };
 
-plugin.setFileManagerMenuEntries = function (menu, path) {
+plugin.setFileManagerMenuEntries = function(menu, path) {
 
 	var pathIsDir = flm.utils.isDir(path);
 
@@ -262,8 +239,8 @@ plugin.setFileManagerMenuEntries = function (menu, path) {
 
 };
 
-plugin.showDialog = function(what, templateData)
-{
+plugin.showDialog = function(what, templateData) {
+
 	var dialogs = flm.ui.getDialogs();
 	dialogs.forms[what].options=  {
 			//	public_endpoint: plugin.config.public_endpoint,
@@ -301,8 +278,7 @@ plugin.setUI = function(flmUi) {
 
 	window.flm.ui.browser.onSetEntryMenu(plugin.setFileManagerMenuEntries);
 
-
-	flm.views.getView(viewsPath + '/' +'table-header',{apiUrl: flm.api.endpoint},
+	flm.views.getView(viewsPath + 'table-header',{apiUrl: flm.api.endpoint},
 		function (view) {
 
 			$('#FileShare').prepend(view);
@@ -315,18 +291,14 @@ plugin.setUI = function(flmUi) {
 
 		}
 	);
-
 	plugin.renameTab("FileShare",theUILang.FSshow);
-	table.updateColumnNames()
+	table.updateColumnNames();
 };
-
-
 
 plugin.flmConfig = theWebUI.config;
 theWebUI.config = function(data) {
-
-		table.create();
-		plugin.flmConfig.call(this,data);
+	table.create();
+	plugin.flmConfig.call(this,data);
 };
 
 plugin.onShow = theTabs.onShow;
