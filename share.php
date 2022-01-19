@@ -24,7 +24,7 @@ try {
 
     $c->downloadFile($token);
 
-} catch (Exception) {
+} catch (Throwable $err) {
 
     die('No such file or it expired');
 
