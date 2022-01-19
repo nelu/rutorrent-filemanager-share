@@ -3,98 +3,107 @@
 use Flm\WebController;
 use Flm\Share\Crypt;
 
-class FileManagerShare extends WebController {
+class FileManagerShare extends WebController
+{
+    protected $datafile;
+    public $data = [];
+    //private $limits;
+
+    protected $storage;
+    protected $encoder;
 
 
-	protected $datafile;
-	public $data = array();
-	//private $limits;
+    public function __construct($config)
+    {
+        parent::__construct($config);
 
-	protected $storage;
+        $this->storage = new rCache('/' . __CLASS__);
+        $this->encoder = new Crypt();
+    }
 
-	protected $encoder;
-
-
-	public function __construct($config) {
-
-	    parent::__construct($config);
-
-	    $this->storage = new rCache('/' . __CLASS__);
-
-		$this->encoder = new Crypt();
-
-	}
-
-	public function setEncryption() {
+    public function setEncryption()
+    {
         Crypt::setEncryptionKey($this->config()->key);
     }
-	public function config() {
-	    return (object)$this->config['share'];
+
+    public function config()
+    {
+        return (object)$this->config['share'];
     }
 
-	protected function getSharePath ($token, $ext = '.dat')
+    protected function getSharePath($token, $ext = '.dat')
     {
         $d = ['hash' => $token . $ext];
         return $d;
     }
 
-	public function islimited($max, $cur) {
-		global $limits;
-
-		return ($limits[$max]) ? (($cur <= $limits[$max]) ? false : true): false;
-	}
-
-	protected function getShares()
+    public function islimited($max, $cur)
     {
-            $path = FileUtil::getSettingsPath().'/' . __CLASS__;
+        global $limits;
 
-            $files = glob($path . DIRECTORY_SEPARATOR ."*.{dat}", GLOB_BRACE);
-
-            $r = [];
-
-
-            $this->setEncryption();
-
-
-            foreach ($files as $path)
-            {
-                $id = pathinfo($path, PATHINFO_FILENAME);
-
-                $entry =  $this->read(self::getSharePath($id));
-                unset($entry->credentials);
-                $id = $this->encoder->setString(json_encode([User::getUser(), $id]))->getEncoded();
-                $r[$id] = $entry;
-            }
-
-
-            return $r;
+        return ($limits[$max]) ? (($cur <= $limits[$max]) ? false : true) : false;
     }
 
-	public function add($params) {
+    protected function getShares()
+    {
+        $path = FileUtil::getSettingsPath() . '/' . __CLASS__;
 
-         $duration = $params->duration;
-         $password = $params->pass;
-		global $limits;
+        $files = glob($path . DIRECTORY_SEPARATOR . "*.{dat}", GLOB_BRACE);
+
+        $r = [];
+
+        $this->setEncryption();
+
+        foreach ($files as $path) {
+            $id = pathinfo($path, PATHINFO_FILENAME);
+
+            $entry = $this->read(self::getSharePath($id));
+            unset($entry->credentials);
+            $id = $this->encoder->setString(json_encode([User::getUser(), $id]))->getEncoded();
+            $r[$id] = $entry;
+        }
 
 
-        $file =  $this->flm->getWorkDir($params->target);
+        return $r;
+    }
 
-		if(($stat = LFS::stat($file)) === FALSE) {die('Invalid file');}
+    public function add($params)
+    {
 
-		if($limits['nolimit'] == 0) {
-			if($duration == 0) {die('No limit not allowed');}
-		}
+        $duration = $params->duration;
+        $password = $params->pass;
+        global $limits;
 
-		if($this->islimited('duration', $duration)) {die('Invalid duration!');}
 
-		if($this->islimited('links', count($this->data))) {die('Link limit reached');}
+        $file = $this->flm->getWorkDir($params->target);
 
-		if($password === FALSE) {$password = '';}
+        if (($stat = LFS::stat($file)) === FALSE) {
+            die('Invalid file');
+        }
 
-		do {$token = Crypt::randomChars();} while ($this->read($this->getSharePath($token)));
+        if ($limits['nolimit'] == 0) {
+            if ($duration == 0) {
+                die('No limit not allowed');
+            }
+        }
 
-		if($password)
-        {
+        if ($this->islimited('duration', $duration)) {
+            die('Invalid duration!');
+        }
+
+        if ($this->islimited('links', count($this->data))) {
+            die('Link limit reached');
+        }
+
+        if ($password === FALSE) {
+            $password = '';
+        }
+
+        do {
+            $token = Crypt::randomChars();
+        } while ($this->read($this->getSharePath($token)));
+
+        if ($password) {
             Crypt::setEncryptionKey($password);
         }
 
@@ -104,64 +113,60 @@ class FileManagerShare extends WebController {
             'file' => $file,
             'size' => $stat['size'],
             'created' => time(),
-            'expire' => time()+(3600*876000),
+            'expire' => time() + (3600 * 876000),
             'hasPass' => !empty($password),
             'downloads' => 0,
             'credentials' => $this->encoder->getEncoded());
 
-		if($duration > 0) {
-            $data['expire'] = time()+(3600*$duration);
+        if ($duration > 0) {
+            $data['expire'] = time() + (3600 * $duration);
         }
 
+        $this->write($token, $data);
 
-		$this->write($token, $data);
-
-        return ['error' => 0, 'list' =>  $this->getShares()];
-	}
+        return array_merge($this->show(), ['error' => 0]);
+    }
 
 
-    private function authenticate() {
+    private function authenticate()
+    {
         header('WWW-Authenticate: Basic realm="Password"');
         header('HTTP/1.0 401 Unauthorized');
         echo "Not permitted\n";
         exit;
     }
 
-	public function downloadFile($token)
+    public function downloadFile($token)
     {
-        if(!$this->load($token))
-        {
+        if (!$this->load($token)) {
             die('No such file or it expired');
         }
 
 
-        if(isset($this->data->hasPass) && $this->data->hasPass) {
+        if (isset($this->data->hasPass) && $this->data->hasPass) {
 
-            if (!isset($_SERVER['PHP_AUTH_USER']))
-            {
+            if (!isset($_SERVER['PHP_AUTH_USER'])) {
                 $this->authenticate();
             }
 
-            Crypt::setEncryptionKey(isset($_SERVER['PHP_AUTH_PW']) ? $_SERVER['PHP_AUTH_PW'] : '' );
+            Crypt::setEncryptionKey(isset($_SERVER['PHP_AUTH_PW']) ? $_SERVER['PHP_AUTH_PW'] : '');
 
-            try{
-                $credentials =  json_decode(Crypt::fromEncoded($this->data->credentials)->getString(), true);
-            } catch (Exception $e)
-            {
+            try {
+                $credentials = json_decode(Crypt::fromEncoded($this->data->credentials)->getString(), true);
+            } catch (Exception $e) {
                 // invalid pass
                 $credentials = [];
             }
 
             // invalid pass
-            if(!isset($credentials['u']))
-            {
+            if (!isset($credentials['u'])) {
                 $this->authenticate();
 
             }
         }
 
         if (!SendFile::send($this->data->file, null, null, false)) {
-            CachedEcho::send('Invalid file: " - ' . $this->data->file , "text/html");
+            CachedEcho::send('Invalid file: " - ' . $this->data->file, "text/html");
         } else {
 
             $this->load($token)
@@ -169,57 +174,66 @@ class FileManagerShare extends WebController {
             && $this->write($token, (array)$this->data);
         }
         die();
-
     }
 
-    public function del($input) {
-		$items = $input->entries;
+    public function del($input)
+    {
+        $items = $input->entries;
 
-        if(!$items) { die('Invalid link id');}
-
-		foreach($items as $id) {
-			    $this->storage->remove((object)self::getSharePath($id, ''));
-		}
-
-        return ['error' => 0, 'list' =>  $this->getShares()];
-
-    }
-
-	public function edit($id, $duration, $password) {
-		global $limits;
-
-		if(!isset($this->data[$id])) {die('Invalid link');}
-
-		if($duration !== FALSE) {
-			if($limits['nolimit'] == 0) {
-				if($duration == 0) {die('No limit not allowed');}
-			}
-			if($this->islimited('duration', $duration)) {die('Invalid duration!');}
-			if($duration > 0) {
-				$this->data[$id]['expire'] = time()+(3600*$duration);
-			} else {
-				$this->data[$id]['expire'] = time()+(3600*876000);
-			}
-		}
-
-		if($password === FALSE) {
-			$this->data[$id]['password'] = '';
-		} else {
-			$this->data[$id]['password'] = $password;
-		}
-		//$this->write();
-	}
-
-	public function show() {
-	    $shares = $this->getShares();
-        foreach ($shares as &$entry) {
-                $entry->file = $this->flm->extractChrootPath($entry->file );
+        if (!$items) {
+            die('Invalid link id');
         }
 
-		return ['list' => $shares];
-	}
+        foreach ($items as $id) {
+            $this->storage->remove((object)self::getSharePath($id, ''));
+        }
 
-	public function read($file)
+        return array_merge($this->show(), ['error' => 0]);
+    }
+
+    public function edit($id, $duration, $password)
+    {
+        global $limits;
+
+        if (!isset($this->data[$id])) {
+            die('Invalid link');
+        }
+
+        if ($duration !== FALSE) {
+            if ($limits['nolimit'] == 0) {
+                if ($duration == 0) {
+                    die('No limit not allowed');
+                }
+            }
+            if ($this->islimited('duration', $duration)) {
+                die('Invalid duration!');
+            }
+            if ($duration > 0) {
+                $this->data[$id]['expire'] = time() + (3600 * $duration);
+            } else {
+                $this->data[$id]['expire'] = time() + (3600 * 876000);
+            }
+        }
+
+        if ($password === FALSE) {
+            $this->data[$id]['password'] = '';
+        } else {
+            $this->data[$id]['password'] = $password;
+        }
+        //$this->write();
+    }
+
+    public function show()
+    {
+        $shares = $this->getShares();
+        foreach ($shares as &$entry) {
+            $entry->file = $this->flm->extractChrootPath($entry->file);
+        }
+
+        return ['list' => $shares];
+    }
+
+    public function read($file)
     {
         $file = (object)$file;
 
@@ -228,24 +242,23 @@ class FileManagerShare extends WebController {
         return $ret ? $file : $ret;
     }
 
-	protected function load($token) {
+    protected function load($token)
+    {
         $file = $this->getSharePath($token);
         $this->data = $this->read((object)$file);
 
         return $this->data ? true : false;
-	}
+    }
 
-	private function write($token, $data = []) {
-
+    private function write($token, $data = [])
+    {
         $file = $this->getSharePath($token);
 
         $file = array_merge($data, $file);
-     //   $file->modified = time();
+        //   $file->modified = time();
 
         return $this->storage->set((object)$file);
-
-	}
-
+    }
 
 
 }
