@@ -25,7 +25,7 @@ try {
     $c->downloadFile($token);
 
 } catch (Throwable $err) {
-
+    FileUtil::toLog($err);
     die('No such file or it expired');
 
 }

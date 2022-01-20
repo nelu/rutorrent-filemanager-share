@@ -77,22 +77,22 @@ class FileManagerShare extends WebController
 
         $file = $this->flm->currentDir($params->target);
 
-        if (($stat = LFS::stat($file)) === FALSE) {
-            die('Invalid file');
+        if (($stat = LFS::stat($this->flm()->getFsPath($params->target))) === FALSE) {
+            throw new Exception('Invalid file: '.$file);
         }
 
         if ($limits['nolimit'] == 0) {
             if ($duration == 0) {
-                die('No limit not allowed');
+                throw new Exception('No limit not allowed');
             }
         }
 
         if ($this->islimited('duration', $duration)) {
-            die('Invalid duration!');
+            throw new Exception('Invalid duration!');
         }
 
         if ($this->islimited('links', count($this->data))) {
-            die('Link limit reached');
+            throw new Exception('Link limit reached');
         }
 
         if ($password === FALSE) {
@@ -139,9 +139,9 @@ class FileManagerShare extends WebController
     public function downloadFile($token)
     {
         if (!$this->load($token)) {
+
             die('No such file or it expired');
         }
-
 
         if (isset($this->data->hasPass) && $this->data->hasPass) {
 
@@ -165,7 +165,7 @@ class FileManagerShare extends WebController
             }
         }
 
-        if (!SendFile::send($this->data->file, null, null, false)) {
+        if (!SendFile::send($this->flm()->getFsPath($this->data->file), null, null, false)) {
             CachedEcho::send('Invalid file: " - ' . $this->data->file, "text/html");
         } else {
 
@@ -226,9 +226,6 @@ class FileManagerShare extends WebController
     public function show()
     {
         $shares = $this->getShares();
-        foreach ($shares as &$entry) {
-            $entry->file = $this->flm->extractChrootPath($entry->file);
-        }
 
         return ['list' => $shares];
     }
