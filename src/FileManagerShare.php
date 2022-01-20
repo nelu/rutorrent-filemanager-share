@@ -75,7 +75,7 @@ class FileManagerShare extends WebController
         global $limits;
 
 
-        $file = $this->flm->getWorkDir($params->target);
+        $file = $this->flm->currentDir($params->target);
 
         if (($stat = LFS::stat($file)) === FALSE) {
             die('Invalid file');
