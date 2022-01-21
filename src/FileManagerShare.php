@@ -7,7 +7,6 @@ use FileUtil;
 use Flm\WebController;
 use LFS;
 use \rCache;
-use ReflectionClass;
 use SendFile;
 use User;
 
@@ -25,7 +24,7 @@ class FileManagerShare extends WebController
     {
         parent::__construct($config);
 
-        $this->storage = new rCache('/' . (new ReflectionClass($this))->getShortName());
+        $this->storage = new rCache('/' . (new \ReflectionClass($this))->getShortName());
         $this->encoder = new Crypt();
     }
 
@@ -54,7 +53,7 @@ class FileManagerShare extends WebController
 
     protected function getShares()
     {
-        $path = FileUtil::getSettingsPath() . '/' . (new ReflectionClass($this))->getShortName();
+        $path = FileUtil::getSettingsPath() . '/' . (new \ReflectionClass($this))->getShortName();
 
         $files = glob($path . DIRECTORY_SEPARATOR . "*.{dat}", GLOB_BRACE);
 
@@ -181,7 +180,6 @@ class FileManagerShare extends WebController
         if (!SendFile::send($this->flm()->getFsPath($this->data->file), null, null, false)) {
             CachedEcho::send('Invalid file: " - ' . $this->data->file, "text/html");
         } else {
-
             $this->load($token)
             && ++$this->data->downloads
             && $this->write($token, (array)$this->data);

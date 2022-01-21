@@ -21,7 +21,7 @@ Plugin configuration `conf.php`:
 $limits['duration'] = 24; 
 $limits['links'] = 0;
 $limits['nolimit'] = 0;
-$downloadpath = '//'.$_SERVER['HTTP_HOST'].'/rutorrent/plugins/filemanager-share/share.php';
+$downloadpath = '';
  ```
    - `$limits['duration']` - max link expire time in hours if `$limits['nolimit']` is disabled
    - `$limits['links']` - max number of links the user can create

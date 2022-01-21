@@ -7,6 +7,9 @@ var table = {
         var table = theWebUI.getTable("fsh");
         table.clearRows();
 
+        var hostPath = $type(plugin.config.endpoint) && plugin.config.endpoint !== ''
+            ? plugin.config.endpoint
+            : flm.utils.rtrim(window.location.href,'/') + '/'+ plugin.path + 'share.php';
         $.each(data.list, function (ndx, item) {
 
             table.addRowById({
@@ -15,7 +18,7 @@ var table = {
                 created: item.created,
                 size: item.size,
                 time: item.expire,
-                link: plugin.config.endpoint + '/' + ndx
+                link: hostPath + '/' + ndx
             }, "_fsh_" + item.hash, 'Icon_File');
         });
 

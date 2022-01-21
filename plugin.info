@@ -1,6 +1,6 @@
 plugin.description: File Share plugin (an extension for the File Manager plugin).
 plugin.author: HWK
-plugin.version: 1.0
+plugin.version: 1.1
 rtorrent.remote: error
 rtorrent.external.error: php
 php.extensions.error: openssl
