@@ -1,7 +1,15 @@
 <?php
+namespace Flm\Share;
 
+use CachedEcho;
+use Exception;
+use FileUtil;
 use Flm\WebController;
-use Flm\Share\Crypt;
+use LFS;
+use \rCache;
+use ReflectionClass;
+use SendFile;
+use User;
 
 class FileManagerShare extends WebController
 {
@@ -17,7 +25,7 @@ class FileManagerShare extends WebController
     {
         parent::__construct($config);
 
-        $this->storage = new rCache('/' . __CLASS__);
+        $this->storage = new rCache('/' . (new ReflectionClass($this))->getShortName());
         $this->encoder = new Crypt();
     }
 
@@ -46,7 +54,7 @@ class FileManagerShare extends WebController
 
     protected function getShares()
     {
-        $path = FileUtil::getSettingsPath() . '/' . __CLASS__;
+        $path = FileUtil::getSettingsPath() . '/' . (new ReflectionClass($this))->getShortName();
 
         $files = glob($path . DIRECTORY_SEPARATOR . "*.{dat}", GLOB_BRACE);
 
@@ -67,6 +75,11 @@ class FileManagerShare extends WebController
         return $r;
     }
 
+    /**
+     * @param $params
+     * @return array
+     * @throws Exception
+     */
     public function add($params)
     {
 

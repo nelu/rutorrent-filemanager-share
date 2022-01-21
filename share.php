@@ -1,8 +1,9 @@
 <?php
 use Flm\Helper;
 use Flm\Share\Crypt;
+use Flm\Share\FileManagerShare;
+
 include dirname(__FILE__) . '/boot.php';
-include(dirname(__FILE__) . '/conf.php');
 $config = include('conf.php');
 
 if(!isset($_SERVER['PATH_INFO']) || empty($_SERVER['PATH_INFO']))
