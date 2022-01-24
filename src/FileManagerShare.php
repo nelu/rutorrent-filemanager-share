@@ -19,12 +19,12 @@ class FileManagerShare extends WebController
     protected $storage;
     protected $encoder;
 
-
     public function __construct($config)
     {
         parent::__construct($config);
 
-        $this->storage = new rCache('/' . (new \ReflectionClass($this))->getShortName());
+        $this->classname = (new \ReflectionClass($this))->getShortName();
+        $this->storage = new rCache('/' . $this->classname);
         $this->encoder = new Crypt();
     }
 
@@ -41,6 +41,7 @@ class FileManagerShare extends WebController
     protected function getSharePath($token, $ext = '.dat')
     {
         $d = ['hash' => $token . $ext];
+
         return $d;
     }
 
@@ -53,7 +54,7 @@ class FileManagerShare extends WebController
 
     protected function getShares()
     {
-        $path = FileUtil::getSettingsPath() . '/' . (new \ReflectionClass($this))->getShortName();
+        $path = FileUtil::getSettingsPath() . '/' . $this->classname;
 
         $files = glob($path . DIRECTORY_SEPARATOR . "*.{dat}", GLOB_BRACE);
 
@@ -70,7 +71,6 @@ class FileManagerShare extends WebController
             $r[$id] = $entry;
         }
 
-
         return $r;
     }
 
@@ -81,15 +81,14 @@ class FileManagerShare extends WebController
      */
     public function add($params)
     {
-
         $duration = $params->duration;
         $password = $params->pass;
         global $limits;
 
-
         $file = $this->flm->currentDir($params->target);
+        $fpath = $this->flm()->getFsPath($params->target);
 
-        if (($stat = LFS::stat($this->flm()->getFsPath($params->target))) === FALSE) {
+        if (($stat = LFS::stat($fpath)) === FALSE) {
             throw new Exception('Invalid file: '.$file);
         }
 
@@ -100,7 +99,7 @@ class FileManagerShare extends WebController
         }
 
         if ($this->islimited('duration', $duration)) {
-            throw new Exception('Invalid duration!');
+            throw new Exception('Invalid duration');
         }
 
         if ($this->islimited('links', count($this->data))) {
@@ -122,6 +121,7 @@ class FileManagerShare extends WebController
         $this->encoder->setString(json_encode(['u' => User::getUser()]));
 
         $data = array(
+            'fpath' => $fpath,
             'file' => $file,
             'size' => $stat['size'],
             'created' => time(),
@@ -139,32 +139,73 @@ class FileManagerShare extends WebController
         return array_merge($this->show(), ['error' => 0]);
     }
 
-
-    private function authenticate()
+    private function wrongPasswordPage()
     {
-        header('WWW-Authenticate: Basic realm="Password"');
-        header('HTTP/1.0 401 Unauthorized');
-        echo "Not permitted\n";
-        exit;
+        echo '<!DOCTYPE html>';
+        echo '<html lang="en">';
+        echo '<head>';
+        echo '<title>Password required</title>';
+        echo '<meta http-equiv="refresh" content="3">';
+        echo '</head>';
+        echo '<body>';
+        echo '<h1>Password incorrect. Redirecting...</h1>';
+        echo '</body>';
+        echo '</html>';
+    }
+
+    private function createAuthForm()
+    {
+        echo '<!DOCTYPE html>';
+        echo '<html lang="en">';
+        echo '<head>';
+        echo '<title>Password required</title>';
+        echo '</head>';
+        echo '<body>';
+        echo '<h1>Password required</h1>';
+        echo '<form method="post" onsubmit="setTimeout(function(){document.getElementById(\'pw\').value=\'\';},10)">';
+        echo '<label for="pw">Password:</label> &nbsp;';
+        echo '<input type="text" name="pw" id="pw" style="-webkit-text-security: disc" autocomplete="off" required>';
+        echo '<br><br>';
+        echo '<input type="submit" name="submit">';
+        echo '</form>';
+        echo '</body>';
+        echo '</html>';
     }
 
     public function downloadFile($token)
     {
         if (!$this->load($token)) {
-
-            die('No such file or it expired');
+            die('No such file');
         }
 
-        if (isset($this->data->hasPass) && $this->data->hasPass) {
+        $data = unserialize($this->data);
 
-            if (!isset($_SERVER['PHP_AUTH_USER'])) {
-                $this->authenticate();
+        if (time() >= $data->expire) {
+            die('File has expired');
+        }
+
+        if (isset($data->hasPass) && $data->hasPass) {
+
+            if (!isset($_SESSION['postdata'])) {
+                session_start();
             }
 
-            Crypt::setEncryptionKey(isset($_SERVER['PHP_AUTH_PW']) ? $_SERVER['PHP_AUTH_PW'] : '');
+            if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+                $_SESSION['postdata'] = $_POST;
+                unset($_POST);
+                echo '<meta http-equiv="refresh" content="0">';
+                exit;
+            }
+
+            if (!isset($_POST['pw']) && !isset($_SESSION['postdata']['pw'])) {
+                $this->createAuthForm();
+                exit;
+            }
+
+            Crypt::setEncryptionKey(isset($_SESSION['postdata']['pw']) ? $_SESSION['postdata']['pw'] : '');
 
             try {
-                $credentials = json_decode(Crypt::fromEncoded($this->data->credentials)->getString(), true);
+                $credentials = json_decode(Crypt::fromEncoded($data->credentials)->getString(), true);
             } catch (Exception $e) {
                 // invalid pass
                 $credentials = [];
@@ -172,19 +213,27 @@ class FileManagerShare extends WebController
 
             // invalid pass
             if (!isset($credentials['u'])) {
-                $this->authenticate();
-
+                unset($_SESSION['postdata']);
+                $this->wrongPasswordPage();
+                exit;
             }
+
+            if (!isset($_SESSION['postdata']['ok'])) {
+                $_SESSION['postdata']['ok'] = $_SESSION['postdata']['pw'];
+                echo '<meta http-equiv="refresh" content="0">';
+                exit;
+            }
+            unset($_SESSION['postdata']);
+
         }
 
-        if (!SendFile::send($this->flm()->getFsPath($this->data->file), null, null, false)) {
-            CachedEcho::send('Invalid file: " - ' . $this->data->file, "text/html");
+        if (!SendFile::send($data->fpath, null, null, false)) {
+            CachedEcho::send('File not found "' . $data->file . '"', "text/html");
         } else {
-            $this->load($token)
-            && ++$this->data->downloads
-            && $this->write($token, (array)$this->data);
+            ++$data->downloads
+            && $this->write('', serialize($data), true);
         }
-        die();
+        exit;
     }
 
     public function del($input)
@@ -217,7 +266,7 @@ class FileManagerShare extends WebController
                 }
             }
             if ($this->islimited('duration', $duration)) {
-                die('Invalid duration!');
+                die('Invalid duration');
             }
             if ($duration > 0) {
                 $this->data[$id]['expire'] = time() + (3600 * $duration);
@@ -252,21 +301,28 @@ class FileManagerShare extends WebController
 
     protected function load($token)
     {
+        $path = FileUtil::getSettingsPathEx($_SERVER['REMOTE_USER']) . '/' . $this->classname;
+
         $file = $this->getSharePath($token);
-        $this->data = $this->read((object)$file);
+
+        $this->datafile = $path . '/' . $file['hash'];
+
+        $this->data = @file_get_contents($this->datafile);
 
         return $this->data ? true : false;
     }
 
-    private function write($token, $data = [])
+    private function write($token, $data = [], $updateOnly = false)
     {
-        $file = $this->getSharePath($token);
+        if (!$updateOnly) {
+            $file = $this->getSharePath($token);
 
-        $file = array_merge($data, $file);
-        //   $file->modified = time();
+            $file = array_merge($data, $file);
+            //$file->modified = time();
 
-        return $this->storage->set((object)$file);
+            return $this->storage->set((object)$file);
+        }
+
+        return file_put_contents($this->datafile, $data);
     }
-
-
 }
