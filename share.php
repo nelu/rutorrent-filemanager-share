@@ -6,7 +6,7 @@ use Flm\Share\FileManagerShare;
 include dirname(__FILE__) . '/boot.php';
 $config = include('conf.php');
 
-if(!isset($_SERVER['PATH_INFO']) || empty($_SERVER['PATH_INFO']))
+if (!isset($_SERVER['PATH_INFO']) || empty($_SERVER['PATH_INFO']))
 {
     die('No such file or it expired');
 }
@@ -26,6 +26,7 @@ try {
     $c->downloadFile($token);
 
 } catch (Throwable $err) {
+
     FileUtil::toLog($err);
     die('No such file or it expired');
 
