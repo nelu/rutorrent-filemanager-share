@@ -139,21 +139,22 @@ class FileManagerShare extends WebController
         return array_merge($this->show(), ['error' => 0]);
     }
 
-    private function wrongPasswordPage()
+    private function invalidPasswordPage()
     {
         echo '<!DOCTYPE html>';
         echo '<html lang="en">';
         echo '<head>';
-        echo '<title>Password required</title>';
+        echo '<title>Password incorrect</title>';
         echo '<meta http-equiv="refresh" content="3">';
         echo '</head>';
         echo '<body>';
         echo '<h1>Password incorrect. Redirecting...</h1>';
         echo '</body>';
         echo '</html>';
+        exit;
     }
 
-    private function createAuthForm()
+    private function authFormPage()
     {
         echo '<!DOCTYPE html>';
         echo '<html lang="en">';
@@ -170,6 +171,18 @@ class FileManagerShare extends WebController
         echo '</form>';
         echo '</body>';
         echo '</html>';
+        exit;
+    }
+
+    private function getFile($data)
+    {
+        if (!SendFile::send($data->fpath, null, null, false)) {
+            CachedEcho::send('File not found "' . $data->file . '"', "text/html");
+        } else {
+            ++$data->downloads
+            && $this->write('', serialize($data), true);
+        }
+        exit;
     }
 
     public function downloadFile($token)
@@ -186,23 +199,25 @@ class FileManagerShare extends WebController
 
         if (isset($data->hasPass) && $data->hasPass) {
 
-            if (!isset($_SESSION['postdata'])) {
-                session_start();
+            session_start();
+
+            if (isset($_SESSION['authform']['ok'])) {
+                unset($_SESSION['authform']);
+                session_write_close();
+                $this->getFile($data);
             }
 
             if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-                $_SESSION['postdata'] = $_POST;
+                $_SESSION['authform']['postdata'] = $_POST;
                 unset($_POST);
-                echo '<meta http-equiv="refresh" content="0">';
-                exit;
             }
 
-            if (!isset($_POST['pw']) && !isset($_SESSION['postdata']['pw'])) {
-                $this->createAuthForm();
-                exit;
+            if (!isset($_SESSION['authform']['postdata']['pw'])) {
+                unset($_SESSION['authform']);
+                $this->authFormPage();
             }
 
-            Crypt::setEncryptionKey(isset($_SESSION['postdata']['pw']) ? $_SESSION['postdata']['pw'] : '');
+            Crypt::setEncryptionKey($_SESSION['authform']['postdata']['pw']);
 
             try {
                 $credentials = json_decode(Crypt::fromEncoded($data->credentials)->getString(), true);
@@ -213,27 +228,16 @@ class FileManagerShare extends WebController
 
             // invalid pass
             if (!isset($credentials['u'])) {
-                unset($_SESSION['postdata']);
-                $this->wrongPasswordPage();
-                exit;
+                unset($_SESSION['authform']);
+                $this->invalidPasswordPage();
             }
 
-            if (!isset($_SESSION['postdata']['ok'])) {
-                $_SESSION['postdata']['ok'] = $_SESSION['postdata']['pw'];
-                echo '<meta http-equiv="refresh" content="0">';
-                exit;
-            }
-            unset($_SESSION['postdata']);
+            $_SESSION['authform']['ok'] = 1;
+            echo '<meta http-equiv="refresh" content="0">';
+            exit;
 
         }
-
-        if (!SendFile::send($data->fpath, null, null, false)) {
-            CachedEcho::send('File not found "' . $data->file . '"', "text/html");
-        } else {
-            ++$data->downloads
-            && $this->write('', serialize($data), true);
-        }
-        exit;
+        $this->getFile($data);
     }
 
     public function del($input)
