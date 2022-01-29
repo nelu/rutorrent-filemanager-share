@@ -72,7 +72,7 @@ class FileManagerShare extends WebController
         global $limits;
 
         $file = $this->flm->currentDir($params->target);
-        $fpath = $this->flm()->getFsPath($params->target);
+        $fpath = $this->flm()->getFsPath($file);
 
         if (($stat = LFS::stat($fpath)) === FALSE) {
             throw new Exception('Invalid file: ' . $file);
@@ -201,8 +201,7 @@ class FileManagerShare extends WebController
     public function downloadShare($token)
     {
         if (!$this->load($token)) {
-            header("HTTP/1.1 404 Not Found");
-            CachedEcho::send('File not found');
+            $this->showNotFound();
         }
 
         if ($this->isExpired()) {
@@ -221,8 +220,17 @@ class FileManagerShare extends WebController
                 $this->showPasswordForm(true);
             }
         }
-        
-        $this->sendFile();
+
+        $fpath = $this->flm()->getFsPath($this->data['file']);
+
+        if (!SendFile::send($fpath, null, null, false)) {
+            $this->showNotFound();
+        } else {
+            $this->data['downloads']++;
+            $this->write();
+        }
+
+        exit;
     }
 
     public function load($token)
@@ -237,17 +245,17 @@ class FileManagerShare extends WebController
         return ($fileData !== false);
     }
 
-    private function sendFile()
+    public function showNotFound($file = null)
     {
-        $fpath = $this->flm()->getFsPath($this->data['file']);
-
-        if (!SendFile::send($fpath, null, null, false)) {
-            CachedEcho::send('File not found "' . $this->data['file'] . '"', "text/html");
-        } else {
-            $this->data['downloads']++;
-            $this->write();
+        if(is_null($file))
+        {
+            $file = $this->data['file'];
         }
-        exit;
+        header("HTTP/1.1 404 Not Found");
+        CachedEcho::send(
+            'File not found' . is_null($file) ? '' : ': '.basename($file),
+            "text/html"
+        );
     }
 
     public function showPasswordForm($withError = false)
