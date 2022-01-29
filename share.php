@@ -1,6 +1,5 @@
 <?php
 use Flm\Helper;
-use Flm\Share\Crypt;
 use Flm\Share\FileManagerShare;
 
 include dirname(__FILE__) . '/boot.php';
@@ -11,19 +10,13 @@ if (!isset($_SERVER['PATH_INFO']) || empty($_SERVER['PATH_INFO']))
     die('No such file or it expired');
 }
 
-Crypt::setEncryptionKey($config['key']);
-
 try {
+    $share = FileManagerShare::From($_SERVER['PATH_INFO'], $config['key']);
 
-    $data = json_decode(Crypt::fromEncoded(trim($_SERVER['PATH_INFO'],'/'))->getString(), true);
-
-    list($user, $token) = $data;
-
-    $_SERVER['REMOTE_USER'] = $user;
+    $_SERVER['REMOTE_USER'] = $share['user'];
 
     $c = new FileManagerShare(array_merge(Helper::getConfig(), ['share' => $config]));
-
-    $c->downloadFile($token);
+    $c->downloadShare($share['token']);
 
 } catch (Throwable $err) {
 

@@ -1,4 +1,11 @@
 <?php
+// error section
+$err = $withError
+? <<<ERR
+<h1 style="color: red;">Wrong password. Try again!</h1> 
+ERR
+: '';
+
 return <<<PAGE
 <!DOCTYPE html>
 <html lang="en">
@@ -6,6 +13,7 @@ return <<<PAGE
 <title>Password required</title>
 </head>
 <body>
+{$err}
 <h1>Password required</h1>
 <form method="post" onsubmit="setTimeout(function(){document.getElementById('pw').value=''},10)">
 <label for="pw">Password:</label> &nbsp;
