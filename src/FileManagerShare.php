@@ -154,24 +154,9 @@ class FileManagerShare extends WebController
         exit;
     }
 
-    private function authFormPage()
+    public function authFormPage()
     {
-        echo '<!DOCTYPE html>';
-        echo '<html lang="en">';
-        echo '<head>';
-        echo '<title>Password required</title>';
-        echo '</head>';
-        echo '<body>';
-        echo '<h1>Password required</h1>';
-        echo '<form method="post" onsubmit="setTimeout(function(){document.getElementById(\'pw\').value=\'\';},10)">';
-        echo '<label for="pw">Password:</label> &nbsp;';
-        echo '<input type="text" name="pw" id="pw" style="-webkit-text-security: disc" autocomplete="off" required>';
-        echo '<br><br>';
-        echo '<input type="submit" name="submit">';
-        echo '</form>';
-        echo '</body>';
-        echo '</html>';
-        exit;
+        CachedEcho::send(include(__DIR__ . '/../views/password-form.php'), "text/html");
     }
 
     private function getFile($data)
