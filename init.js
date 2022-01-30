@@ -116,8 +116,8 @@ table.create = function () {
                 {text: '', width: "210px", id: "file", type: TYPE_STRING},
                 {text: '', width: "65px", id: "downloads", type: TYPE_NUMBER},
                 {text: theUILang.Size, width: "60px", id: "size", type: TYPE_NUMBER},
-                {text: '', width: "120px", id: "created", type: TYPE_DATE, "align": ALIGN_CENTER},
-                {text: '', width: "120px", id: "time", type: TYPE_STRING, "align": ALIGN_CENTER},
+                {text: '', width: "120px", id: "created", type: TYPE_NUMBER, "align": ALIGN_CENTER},
+                {text: '', width: "120px", id: "time", type: TYPE_NUMBER, "align": ALIGN_CENTER},
                 {text: '', width: "310px", id: "link", type: TYPE_STRING}
             ],
         container: "FileShare",

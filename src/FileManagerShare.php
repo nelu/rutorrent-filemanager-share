@@ -154,7 +154,8 @@ class FileManagerShare extends WebController
         return (object)$this->config['share'];
     }
 
-    public function isValidPassword($pass) {
+    public function isValidPassword($pass)
+    {
         Crypt::setEncryptionKey($pass);
 
         try {
@@ -211,7 +212,7 @@ class FileManagerShare extends WebController
 
         if ($this->data['hasPass']) {
 
-            $postPassword = isset($_POST['pw']) ? (string)$_POST['pw'] : null;
+            $postPassword = isset($_POST['pw']) ? (string)$_POST['pw'] : '';
 
             if (!strlen($postPassword)) {
                 $this->showPasswordForm();
@@ -323,12 +324,11 @@ class FileManagerShare extends WebController
      */
     public static function From($encrypted, $withKey) : array
     {
-
         Crypt::setEncryptionKey($withKey);
 
         $data = json_decode(Crypt::fromEncoded(trim($encrypted,'/'))->getString(), true);
 
-        return ['user' => $data[0], 'token'=>$data[1]];
+        return ['user' => $data[0], 'token' => $data[1]];
     }
 
 }
