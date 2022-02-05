@@ -57,6 +57,7 @@ class FileManagerShare extends WebController
         if ($share == null) {
             $share = $this->data;
         }
+        $share = (array)$share;
         return (time() >= $share['expire']);
     }
 
@@ -129,7 +130,7 @@ class FileManagerShare extends WebController
         return ($limits[$max]) ? (($cur <= $limits[$max]) ? false : true) : false;
     }
 
-    protected function getShares(): array
+    public function getShares(): array
     {
         $files = glob($this->storeDir . "*.{" . self::DATA_FILE_EXT . "}", GLOB_BRACE);
 

@@ -1,8 +1,8 @@
 <?php
 $config = include('conf.php');
-$theSettings->registerEventHook('filemanager',"remove");
+$theSettings->registerEventHook($plugin["name"],"File_remove", 10, true);
 
-$theSettings->registerPlugin("filemanager-share");
+$theSettings->registerPlugin($plugin["name"]);
 
 unset($config['key']);
 

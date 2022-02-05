@@ -13,8 +13,15 @@ $limits['nolimit'] = 0; // allow unlimited duration (=~ 100 years) with duration
 // $downloadpath = '//'.$_SERVER['HTTP_HOST'].'/rutorrent/plugins/filemanager-share/share.php';
 $downloadpath = '';
 
+// automatically remove shares - only when removing the file or the containing directory
+$autoRemove = false;
+
+// automatically remove expired shares - called only when removing
+$purgeExpired = true;
+
 return ['limits' => $limits,
         'endpoint' => $downloadpath,
-        "key" => "mycu570m3ncryp710nk3y"
-
+        "key" => "mycu570m3ncryp710nk3y",
+        "remove_share_on_file_delete" => $autoRemove,
+        "purge_expired_shares" => $purgeExpired
 ];
