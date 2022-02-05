@@ -21,7 +21,7 @@ class filemanager_shareHooks
             $search_path = rtrim($f, '/');
             foreach ($userShares as $id => $share)
             {
-                if(strpos($share->file, $search_path) !== false
+                if(strpos($share->file, $search_path) === 0
                 && (
                     $config['remove_share_on_file_delete']
                     || ($config["purge_expired_shares"] && $c->isExpired($share))
