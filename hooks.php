@@ -7,8 +7,12 @@ include dirname(__FILE__) . '/boot.php';
 
 class filemanager_shareHooks
 {
+    public static function OnFile_rename($args)
+    {
+        return self::OnFile_remove(['files' => [$args[0]]]);
+    }
 
-    public static function OnFile_remove( $task_info )
+    public static function OnFile_remove($task_info)
     {
         $config = include(dirname(__FILE__) . '/conf.php');
 
@@ -19,12 +23,11 @@ class filemanager_shareHooks
         // check shared files in the included paths and remove the shares (if expired for now)
         foreach ($task_info['files'] as $f) {
             $search_path = rtrim($f, '/');
-            foreach ($userShares as $id => $share)
-            {
-                if(strpos($share->file, $search_path) === 0
-                && (
-                    $config['remove_share_on_file_delete']
-                    || ($config["purge_expired_shares"] && $c->isExpired($share))
+            foreach ($userShares as $id => $share) {
+                if (strpos($share->file, $search_path) === 0
+                    && (
+                        $config['remove_share_on_file_delete']
+                        || ($config["purge_expired_shares"] && $c->isExpired($share))
                     )
                 ) {
                     $toDelete[] = $share->hash;
@@ -32,9 +35,13 @@ class filemanager_shareHooks
             }
         }
 
-        if(!empty($toDelete))
-        {
+        if (!empty($toDelete)) {
             $c->del((object)['entries' => $toDelete]);
         }
+    }
+
+    public static function OnFile_move($task_info)
+    {
+        return self::OnFile_remove($task_info);
     }
 }
