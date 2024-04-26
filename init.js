@@ -138,9 +138,7 @@ var share = {
 
         var allownolimit = parseFloat(plugin.config.nolimit);
 
-
         var deferred = $.Deferred();
-        //flm.manager.logStart(theUILang.fStarts.archive);
 
         if (!$type(file) || file.length === 0) {
             deferred.reject('Empty paths');
@@ -174,7 +172,6 @@ var share = {
     del: function (entries) {
 
         var deferred = $.Deferred();
-        //flm.manager.logStart(theUILang.fStarts.archive);
 
         if (!$type(entries) || entries.length === 0) {
             deferred.reject('Empty paths');
