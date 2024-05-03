@@ -1,16 +1,18 @@
 plugin.loadCSS('share');
 
-var table = {
+plugin.table = {
 
     addEntries: function (data) {
 
-        var table = theWebUI.getTable("fsh");
+
+        let table = this.get();
         table.clearRows();
 
         var hostPath = $type(plugin.config.endpoint) && plugin.config.endpoint !== ''
             ? plugin.config.endpoint
-            : flm.utils.rtrim(window.location.href,'/') + '/'+ plugin.path + 'share.php';
-        $.each(data.list, function (ndx, item) {
+            : flm.utils.rtrim(window.location.href, '/') + '/' + plugin.path + 'share.php';
+
+        $.each(data, function (ndx, item) {
 
             table.addRowById({
                 file: item.file,
@@ -19,10 +21,41 @@ var table = {
                 size: item.size,
                 time: item.expire,
                 link: hostPath + '/' + ndx
-            }, "_fsh_" + item.hash, 'Icon_File');
+            }, "_fsh_" + ndx, 'Icon_File');
         });
 
         table.refreshRows();
+    },
+
+    create: function () {
+        plugin.attachPageToTabs($('<div>').attr("id", "FileShare").addClass('table_tab').get(0), 'FileShare');
+
+        theWebUI.tables.fsh = {
+            obj: new dxSTable(),
+            columns: [{text: '', width: "210px", id: "file", type: TYPE_STRING}, {
+                text: '',
+                width: "65px",
+                id: "downloads",
+                type: TYPE_NUMBER
+            }, {text: theUILang.Size, width: "60px", id: "size", type: TYPE_NUMBER}, {
+                text: '',
+                width: "120px",
+                id: "created",
+                type: TYPE_NUMBER,
+                "align": ALIGN_CENTER
+            }, {text: '', width: "120px", id: "time", type: TYPE_NUMBER, "align": ALIGN_CENTER}, {
+                text: '',
+                width: "310px",
+                id: "link",
+                type: TYPE_STRING
+            }],
+            container: "FileShare",
+            format: plugin.table.format,
+            onselect: plugin.table.entryMenu,
+            ondblclick: function(item) {flm.share.viewDetails(item.id);}
+        };
+
+
     },
 
     entryMenu: function (e, id) {
@@ -31,20 +64,14 @@ var table = {
 
             theContextMenu.clear();
 
-            var table = theWebUI.getTable("fsh");
-            var target = id.split('_fsh_')[1];
+            var table = plugin.table.get();
 
             if (table.selCount === 1) {
-                theContextMenu.add([theUILang['flm_popup_fsh-view'], function () {
-                    plugin.showDialog('fsh-view', table.rowdata[id].fmtdata);
-
-                }]);
-
+                theContextMenu.add([theUILang['flm_popup_fsh-view'], function () {flm.share.viewDetails(id);}]);
                 theContextMenu.add([theUILang['flm_popup_fsh-view-fm'], function () {
                     var file = table.getValueById(id, 'file');
                     flm.showPath(flm.utils.basedir(file));
                 }]);
-
             }
 
             theContextMenu.add([theUILang.fDelete, function () {
@@ -56,10 +83,10 @@ var table = {
                     for (i in table.rowSel) {
                         if (table.rowSel[i]) {
                             entryName = i.split('_fsh_')[1];
-                            selectedEntries.push(entryName);
+                            selectedEntries.push(flm.share.entriesList[entryName].hash);
                         }
                     }
-                    share.del(selectedEntries);
+                    flm.share.del(selectedEntries);
                 });
             }]);
             theContextMenu.add([CMENU_SEP]);
@@ -70,29 +97,30 @@ var table = {
 
             theContextMenu.show();
 
-            return (true);
+            return true;
         }
-        return (false);
+        return false;
     },
 
     format: function (table, arr) {
         for (var i in arr) {
-            if (arr[i] == null)
-                arr[i] = '';
-            else
-                switch (table.getIdByCol(i)) {
-                    case 'size' :
-                        arr[i] = theConverter.bytes(arr[i], 2);
-                        break;
-                    case 'created':
-                        arr[i] = theConverter.date(iv(arr[i]) + theWebUI.deltaTime / 1000);
-                        break;
-                    case 'time':
-                        arr[i] = theConverter.date(iv(arr[i]) + theWebUI.deltaTime / 1000);
-                        break;
-                }
+            if (arr[i] == null) arr[i] = ''; else switch (table.getIdByCol(i)) {
+                case 'size' :
+                    arr[i] = theConverter.bytes(arr[i], 2);
+                    break;
+                case 'created':
+                    arr[i] = theConverter.date(iv(arr[i]) + theWebUI.deltaTime / 1000);
+                    break;
+                case 'time':
+                    arr[i] = theConverter.date(iv(arr[i]) + theWebUI.deltaTime / 1000);
+                    break;
+            }
         }
         return (arr);
+    },
+
+    get: function () {
+        return  theWebUI.getTable("fsh");
     },
 
     updateColumnNames: function () {
@@ -106,112 +134,105 @@ var table = {
     }
 };
 
-table.create = function () {
-    plugin.attachPageToTabs($('<div>').attr("id", "FileShare").addClass('table_tab').get(0), 'FileShare');
 
-    theWebUI.tables.fsh = {
-        obj: new dxSTable(),
-        columns:
-            [
-                {text: '', width: "210px", id: "file", type: TYPE_STRING},
-                {text: '', width: "65px", id: "downloads", type: TYPE_NUMBER},
-                {text: theUILang.Size, width: "60px", id: "size", type: TYPE_NUMBER},
-                {text: '', width: "120px", id: "created", type: TYPE_NUMBER, "align": ALIGN_CENTER},
-                {text: '', width: "120px", id: "time", type: TYPE_NUMBER, "align": ALIGN_CENTER},
-                {text: '', width: "310px", id: "link", type: TYPE_STRING}
-            ],
-        container: "FileShare",
-        format: table.format,
-        onselect: function (e, id) {
-            table.entryMenu(e, id);
+plugin.FileShare = function () {
+    let self = this;
+    let table = plugin.table.get();
+
+    self = {
+
+        api: null,
+        entriesList: {},
+
+
+        add: function (file, pass, duration) {
+
+            var allownolimit = parseFloat(plugin.config.nolimit);
+
+            var deferred = $.Deferred();
+
+            if (!$type(file) || file.length === 0) {
+                deferred.reject('Empty paths');
+                return deferred.promise();
+            }
+
+            if (flm.utils.isDir(file)) {
+                deferred.reject(theUILang.fDiagInvalidname);
+                return deferred.promise();
+            }
+
+            if (!duration.match(/^\d+$/)) {
+                deferred.reject(theUILang.FSvdur);
+                return deferred.promise();
+            } else if (allownolimit === 0 && duration === 0) {
+                deferred.reject(theUILang.FSnolimitoff);
+                return deferred.promise();
+            } else if (this.islimited(duration)) {
+                deferred.reject(theUILang.FSmaxdur + ' ' + this.maxdur);
+                return deferred.promise();
+            }
+
+            return this.api.post({method: 'add', target: file, pass: pass, duration: duration})
+                .then(function (r) {
+                    self.setEntriesList(r);
+                    return r;
+                });
+        },
+
+        del: function (entries) {
+
+            var deferred = $.Deferred();
+
+            if (!$type(entries) || entries.length === 0) {
+                deferred.reject('Empty paths');
+                return deferred.promise();
+            }
+            return this.api.post({method: 'del', entries: entries}).then(this.setEntriesList);
+        },
+
+        islimited: function (cur) {
+
+            var max = plugin.config.maxlinks;
+
+            return (max > 0) ? ((cur > max)) : false;
+        },
+
+        getEntries: function () {
+
+            return this.api.post({method: 'show'});
+
+        },
+
+        setEntriesList: function (entries) {
+            entries = entries.list || {};
+
+            self.entriesList = entries;
+            plugin.table.addEntries(entries);
+        },
+
+        refresh: function () {
+            this.getEntries().then(this.setEntriesList, function (err) {
+                return err;
+            });
+        },
+
+        viewDetails: function (id) {
+            let target = id.split('_fsh_')[1];
+            let data = flm.share.entriesList[target];
+
+            data.formatted = table.rowdata[id].fmtdata;
+            plugin.showDialog('fsh-view', data);
+        },
+
+        init: function () {
+            this.api = flm.client(plugin.path + 'fsh.php');
+            this.refresh();
         }
+
     };
 
-
-};
-
-var share = {
-
-    api: null,
-
-    add: function (file, pass, duration) {
-
-        var allownolimit = parseFloat(plugin.config.nolimit);
-
-        var deferred = $.Deferred();
-
-        if (!$type(file) || file.length === 0) {
-            deferred.reject('Empty paths');
-            return deferred.promise();
-        }
-
-        if (flm.utils.isDir(file)) {
-            deferred.reject(theUILang.fDiagInvalidname);
-            return deferred.promise();
-        }
-
-        if (!duration.match(/^\d+$/)) {
-            deferred.reject(theUILang.FSvdur);
-            return deferred.promise();
-        } else if (allownolimit === 0 && duration === 0) {
-            deferred.reject(theUILang.FSnolimitoff);
-            return deferred.promise();
-        } else if (this.islimited(duration)) {
-            deferred.reject(theUILang.FSmaxdur + ' ' + this.maxdur);
-            return deferred.promise();
-        }
-
-        flm.manager.logAction(theUILang.FSshow, theUILang.FSlinkcreate);
-
-        return this.api.post({method: 'add', target: file, pass: pass, duration: duration}).then(function (value) {
-            table.addEntries(value);
-        });
-
-    },
-
-    del: function (entries) {
-
-        var deferred = $.Deferred();
-
-        if (!$type(entries) || entries.length === 0) {
-            deferred.reject('Empty paths');
-            return deferred.promise();
-        }
-        return this.api.post({method: 'del', entries: entries}).then(function (value) {
-            table.addEntries(value);
-        });
-    },
-
-    islimited: function (cur) {
-
-        var max = plugin.config.maxlinks;
-
-        return (max > 0) ? ((cur <= max) ? false : true) : false;
-    },
-
-    getEntries: function () {
-
-        return this.api.post({method: 'show'});
-
-    },
-
-    refresh: function () {
-        this.getEntries().then(function (response) {
-            table.addEntries(response);
-            return response;
-        }, function (reason) {
-            return reason;
-        });
-
-    },
-
-    init: function () {
-        this.api = flm.client(plugin.path + 'fsh.php');
-
-        this.refresh();
-    }
-
-};
+    return self;
+}
 
 plugin.setFileManagerMenuEntries = function (menu, path) {
 
@@ -222,12 +243,9 @@ plugin.setFileManagerMenuEntries = function (menu, path) {
         var createPos = thePlugins.get('filemanager').ui.getContextMenuEntryPosition(menu, theUILang.fcreate, 1);
 
         if (createPos > -1) {
-            menu[createPos][2].push([theUILang.FSshare, (!pathIsDir
-                && !flm.share.islimited(theWebUI.getTable("fsh").rows))
-                ? function () {
-                    plugin.showDialog('flm-create-share');
-                }
-                : null]);
+            menu[createPos][2].push([theUILang.FSshare, (!pathIsDir && !flm.share.islimited(theWebUI.getTable("fsh").rows)) ? function () {
+                plugin.showDialog('flm-create-share');
+            } : null]);
         }
 
     }
@@ -242,7 +260,6 @@ plugin.showDialog = function (what, templateData) {
         views: "flm-share",
         plugin: plugin,
         data: templateData
-
     };
 
     return dialogs.showDialog(what);
@@ -273,35 +290,31 @@ plugin.setUI = function (flmUi) {
 
     window.flm.ui.browser.onSetEntryMenu(plugin.setFileManagerMenuEntries);
 
-    flm.views.getView(viewsPath + 'table-header', {apiUrl: flm.api.endpoint},
-        function (view) {
+    flm.views.getView(viewsPath + 'table-header', {apiUrl: flm.api.endpoint}, function (view) {
 
-            $('#FileShare').prepend(view);
+        $('#FileShare').prepend(view);
 
-            setTimeout(function () {
-                $('#FS_refresh').click(function () {
-                    flm.share.refresh();
-                });
-            }, 100);
+        setTimeout(function () {
+            $('#FS_refresh').click(function () {
+                flm.share.refresh();
+            });
+        }, 100);
 
-        }
-    );
+    });
     plugin.renameTab("FileShare", theUILang.FSshow);
-    table.updateColumnNames();
+    plugin.table.updateColumnNames();
 };
 
 plugin.flmConfig = theWebUI.config;
 theWebUI.config = function (data) {
-    table.create();
+    plugin.table.create();
     plugin.flmConfig.call(this, data);
 };
 
 plugin.onShow = theTabs.onShow;
 theTabs.onShow = function (id) {
-
     if (id === "FileShare") {
-        share.refresh();
-        theWebUI.resize();
+        flm.share.refresh();
     }
     plugin.onShow.call(this, id);
 };
@@ -311,16 +324,13 @@ plugin.onLangLoaded = function () {
     if (this.enabled) {
         //onSetEntryMenu
         thePlugins.get('filemanager').ui.readyPromise
-            .then(
-                function (flmUi) {
-                    plugin.setUI(flmUi);
-                    share.init();
-                    flm.share = share;
-                },
-                function (reason) {
+            .then(function (flmUi) {
+                plugin.setUI(flmUi);
+                flm.share = new plugin.FileShare();
+                flm.share.init();
+            }, function (reason) {
 
-                }
-            );
+            });
 
 
     }

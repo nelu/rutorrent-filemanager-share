@@ -3,20 +3,24 @@
 
 {% block content %}
     <fieldset>
-        <textarea name="FS_downlink" rows="2" style="width: 100%" readonly="readonly" id="FS_downlink">{{ data.5 }}</textarea>
+        <textarea name="FS_downlink" rows="2" style="width: 100%; min-height: 198px" readonly="readonly" id="FS_downlink">{{ data.formatted.5 }}</textarea>
 
-        <table border="0" cellspacing="0" cellpadding="0">
+        <table style="width:100%">
             <tr>
                 <td><label>Downloads:</label></td>
-                <td align="right">{{ data.1 }}</td>
+                <td align="right">{{ data.downloads }}</td>
             </tr>
             <tr>
                 <td><label>Expires at:</label></td>
-                <td align="right">{{ data.4 }}</td>
+                <td align="right">{{ data.formatted.4 }}</td>
             </tr>
             <tr>
                 <td><label>File path:</label></td>
-                <td align="right">{{ data.0 }}</td>
+                <td align="right">{{ data.formatted.0 }}</td>
+            </tr>
+            <tr>
+                <td><label>Password:</label></td>
+                <td align="right">{{ data.hasPass ? theUILang.yes : theUILang.no }}</td>
             </tr>
         </table>
 

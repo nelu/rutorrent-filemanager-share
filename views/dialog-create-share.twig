@@ -35,21 +35,36 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+(function (global) {
+    var dialogs = flm.ui.getDialogs();
+    var diagId = dialogs.getDialogId('flm-create-share');
+    dialogs.setDirBrowser(diagId, true);
+    let table = theWebUI.getTable("fsh");
 
-    <script>
-        var dialogs = flm.ui.getDialogs();
-        var diagId = dialogs.getDialogId('flm-create-share');
-        dialogs.setDirBrowser(diagId, true);
+    dialogs.onStart(function () {
+        return flm.share.add(
+            dialogs.getTargetPath(diagId),
+            $('#FS_password').val(),
+            $('#FS_duration').val()
+        ).then(function (r) {
 
-        dialogs.onStart(function () {
+/*            let entry = $.map( r.list, function( value, index ) {
+                return value.hash === r.new ? index : null;
+            });
+            var link = table.getValueById('_fsh_' + entry[0], 'link');
 
-            return flm.share.add(
-                dialogs.getTargetPath(diagId),
-                $('#FS_password').val(),
-                $('#FS_duration').val()
-            );
+            self.noty = $.noty({
+                text: theUILang.FSlinkcreate + ': ' + dialogs.getTargetPath(diagId),
+                layout: 'bottomLeft',
+                type: 'success',
+                timeout: 10000,
+                closeOnSelfClick: true
+            });
+            */
+            return r;
         });
-
-
-    </script>
+    });
+})(window);
+</script>
 {% endblock %}
