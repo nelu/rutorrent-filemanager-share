@@ -120,7 +120,7 @@ class FileManagerShare extends WebController
 
         $this->write($token);
 
-        return array_merge($this->show(), ['error' => 0]);
+        return array_merge($this->show(), ['error' => 0, 'new' => $this->getStoreFile($token)]);
     }
 
     public function islimited($max, $cur)
@@ -139,10 +139,11 @@ class FileManagerShare extends WebController
         Crypt::setEncryptionKey($this->config()->key);
 
         foreach ($files as $filepath) {
-            $id = pathinfo($filepath, PATHINFO_FILENAME);
 
             $entry = $this->read(basename($filepath));
             unset($entry->credentials);
+
+            $id = pathinfo($filepath, PATHINFO_FILENAME);
             $id = $this->encoder->setString(json_encode([User::getUser(), $id]))->getEncoded();
             $r[$id] = $entry;
         }
