@@ -52,7 +52,8 @@ plugin.table = {
             container: "FileShare",
             format: plugin.table.format,
             onselect: plugin.table.entryMenu,
-            ondblclick: function(item) {flm.share.viewDetails(item.id);}
+            ondblclick: function(item) { return flm.share.viewDetails(item.id);},
+            ondelete: function() { return flm.share.deleteEntries();}
         };
 
 
@@ -74,21 +75,8 @@ plugin.table = {
                 }]);
             }
 
-            theContextMenu.add([theUILang.fDelete, function () {
-                askYesNo(theUILang.FSdel, theUILang.FSdelmsg, function () {
-                    var selectedEntries = [];
-                    var entryName;
-                    var i;
+            theContextMenu.add([theUILang.fDelete, flm.share.deleteEntries]);
 
-                    for (i in table.rowSel) {
-                        if (table.rowSel[i]) {
-                            entryName = i.split('_fsh_')[1];
-                            selectedEntries.push(flm.share.entriesList[entryName].hash);
-                        }
-                    }
-                    flm.share.del(selectedEntries);
-                });
-            }]);
             theContextMenu.add([CMENU_SEP]);
             theContextMenu.add([theUILang.FScopylink, (table.selCount !== 1) ? null : function () {
                 var link = table.getValueById(id, 'link');
@@ -149,26 +137,23 @@ plugin.FileShare = function () {
 
             var allownolimit = parseFloat(plugin.config.nolimit);
 
-            var deferred = $.Deferred();
+            let hasErr;
 
             if (!$type(file) || file.length === 0) {
-                deferred.reject('Empty paths');
-                return deferred.promise();
-            }
-
-            if (flm.utils.isDir(file)) {
-                deferred.reject(theUILang.fDiagInvalidname);
-                return deferred.promise();
-            }
-
-            if (!duration.match(/^\d+$/)) {
-                deferred.reject(theUILang.FSvdur);
-                return deferred.promise();
+                hasErr = 'Empty paths';
+            } else if (flm.utils.isDir(file)) {
+                hasErr = theUILang.fDiagInvalidname + ": " +file
+            } else if (!duration.match(/^\d+$/)) {
+                hasErr = theUILang.FSvdur;
             } else if (allownolimit === 0 && duration === 0) {
-                deferred.reject(theUILang.FSnolimitoff);
-                return deferred.promise();
+                hasErr = theUILang.FSnolimitoff;
             } else if (this.islimited(duration)) {
-                deferred.reject(theUILang.FSmaxdur + ' ' + this.maxdur);
+                hasErr = theUILang.FSmaxdur + ' ' + this.maxdur;
+            }
+
+            if (hasErr) {
+                const deferred = $.Deferred();
+                deferred.reject({errcode: 'error', msg:  hasErr});
                 return deferred.promise();
             }
 
@@ -188,6 +173,17 @@ plugin.FileShare = function () {
                 return deferred.promise();
             }
             return this.api.post({method: 'del', entries: entries}).then(this.setEntriesList);
+        },
+
+        deleteEntries: function () {
+
+            const selectedEntries = $.map(table.rowSel, function(value, index) {
+                return  flm.share.entriesList[index.split('_fsh_')[1]].hash;
+            });
+
+            askYesNo(theUILang.FSdel, theUILang.FSdelmsg, function () {
+                flm.share.del(selectedEntries);
+            });
         },
 
         islimited: function (cur) {
