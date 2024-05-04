@@ -48,7 +48,7 @@
             $('#FS_password').val(),
             $('#FS_duration').val()
         ).then(function (r) {
-
+            console.log(r);
 /*            let entry = $.map( r.list, function( value, index ) {
                 return value.hash === r.new ? index : null;
             });
@@ -63,6 +63,10 @@
             });
             */
             return r;
+        }, function (err) {
+            // prevent default error logging from filemanager dialog manager
+            flm.utils.logError(err.errcode || 'error',  err.msg, 'filemanager-share');
+           // return deferred.reject(err);
         });
     });
 })(window);
