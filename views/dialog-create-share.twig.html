@@ -1,5 +1,5 @@
-{% extends "flm::dialog-window.twig" %}
-{% import "flm::dialog-window.twig" as window %}
+{% extends "flm::dialog-window.twig.html" %}
+{% import "flm::dialog-window.twig.html" as window %}
 
 {% block content %}
     {{ window.pathBrowser(selectedTarget, theUILang.FSfile) }}
@@ -29,7 +29,7 @@
         <input type="button" class="flm-diag-start Button" id="FS_addbut" value="{{ theUILang.FSadd }}"
                disabled="disabled"/>
         <input type="button" id="FS_editbut" class="Button" value="{{ theUILang.FSedit }}" style="display: none;"/>
-        <input type="button" class="flm-diag-cancel Button"
+        <input type="button" class="flm-diag-cancel Cancel Button"
                value="{{ closeButtonValue is defined ? closeButtonValue : theUILang.fDiagClose }}"/>
     </div>
 {% endblock %}
@@ -64,7 +64,7 @@
             */
             return r;
         }, function (err) {
-            // prevent default error logging from filemanager dialog manager
+            // prevent default error logging from filemanager dialog actions
             flm.utils.logError(err.errcode || 'error',  err.msg, 'filemanager-share');
            // return deferred.reject(err);
         });

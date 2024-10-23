@@ -286,7 +286,8 @@ plugin.setUI = function (flmUi) {
 
     window.flm.ui.browser.onSetEntryMenu(plugin.setFileManagerMenuEntries);
 
-    flm.views.getView(viewsPath + 'table-header', {apiUrl: flm.api.endpoint}, function (view) {
+    flm.views.getView(viewsPath + 'table-header', {apiUrl: flm.api.endpoint},
+        function (view) {
 
         $('#FileShare').prepend(view);
 
