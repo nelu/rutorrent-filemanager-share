@@ -250,39 +250,42 @@ plugin.setFileManagerMenuEntries = function (menu, path) {
 
 plugin.showDialog = function (what, templateData) {
 
-    var dialogs = flm.ui.getDialogs();
-    dialogs.forms[what].options = {
+    let dialogs = flm.ui.getDialogs();
+    let diagConf = flm.ui.dialogs.getDialogConfig(what);
+
+    diagConf.options = {
         //	public_endpoint: plugin.config.public_endpoint,
         views: "flm-share",
         plugin: plugin,
         data: templateData
     };
 
-    return dialogs.showDialog(what);
+    return dialogs.setDialogConfig(what, diagConf).showDialog(what);
 };
 
 plugin.setUI = function (flmUi) {
 
     var viewsPath = plugin.path + 'views/';
+    let dialogs = flm.ui.dialogs;
 
     flm.views.namespaces['flm-share'] = viewsPath;
 
-    var forms = flmUi.getDialogs().forms;
-
-    forms['flm-create-share'] = {
-        options: {
-            views: "flm-share"
-        },
-        pathbrowse: false,
-        modal: false,
-        template: viewsPath + "dialog-create-share"
-    };
-
-    forms['fsh-view'] = {
-        pathbrowse: false,
-        modal: false,
-        template: viewsPath + "dialog-view"
-    };
+    dialogs.setDialogConfig('flm-create-share',
+        {
+            options: {
+                views: "flm-share"
+            },
+            pathbrowse: false,
+            modal: false,
+            template: viewsPath + "dialog-create-share"
+        }
+    ).setDialogConfig('fsh-view',
+        {
+            pathbrowse: false,
+            modal: false,
+            template: viewsPath + "dialog-view"
+        }
+    );
 
     window.flm.ui.browser.onSetEntryMenu(plugin.setFileManagerMenuEntries);
 

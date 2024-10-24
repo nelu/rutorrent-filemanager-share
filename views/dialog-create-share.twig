@@ -1,5 +1,5 @@
-{% extends "flm::dialog-window.twig.html" %}
-{% import "flm::dialog-window.twig.html" as window %}
+{% extends "flm::dialog-window.twig" %}
+{% import "flm::dialog-window.twig" as window %}
 
 {% block content %}
     {{ window.pathBrowser(selectedTarget, theUILang.FSfile) }}
