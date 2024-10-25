@@ -287,7 +287,7 @@ plugin.setUI = function (flmUi) {
         }
     );
 
-    window.flm.ui.browser.onSetEntryMenu(plugin.setFileManagerMenuEntries);
+    window.flm.ui.filenav.onSetEntryMenu(plugin.setFileManagerMenuEntries);
 
     flm.views.getView(viewsPath + 'table-header', {apiUrl: flm.api.endpoint},
         function (view) {
