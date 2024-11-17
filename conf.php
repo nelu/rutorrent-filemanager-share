@@ -11,7 +11,7 @@ $limits['nolimit'] = 0; // allow unlimited duration (=~ 100 years) with duration
 // path on domain where a symlink to share.php can be found
 // example: http://mydomain.com/share.php
 // $downloadpath = '//'.$_SERVER['HTTP_HOST'].'/rutorrent/plugins/filemanager-share/share.php';
-$downloadpath = '';
+$downloadpath = $_ENV['RU_FLM_SHARE_ENDPOINT'] ?? './plugins/filemanager-share/share.php';
 
 // automatically remove shares - only when removing the file or the containing directory
 $autoRemove = false;
@@ -21,7 +21,7 @@ $purgeExpired = true;
 
 return ['limits' => $limits,
         'endpoint' => $downloadpath,
-        "key" => "mycu570m3ncryp710nk3y",
+        "key" => $_ENV['RU_FLM_SHARE_KEY'] ?? "mycu570m3ncryp710nk3y",
         "remove_share_on_file_delete" => $autoRemove,
         "purge_expired_shares" => $purgeExpired
 ];
