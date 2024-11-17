@@ -323,7 +323,7 @@ plugin.onLangLoaded = function () {
 
     if (this.enabled) {
         //onSetEntryMenu
-        thePlugins.get('filemanager').ui.readyPromise
+        thePlugins.get('filemanager').ready()
             .then(function (flmUi) {
                 plugin.setUI(flmUi);
                 flm.share = new plugin.FileShare();
