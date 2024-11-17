@@ -6,21 +6,22 @@
 
     <fieldset>
         <legend>Options:</legend>
-        <table border="0" cellspacing="0" cellpadding="0">
-            <tr>
-                <td>{{ theUILang.FSdhours }}:</td>
-                <td align="right"><label><input type="text" name="FS_duration" id="FS_duration"
-                                                class="Textbox" value="{{ plugin.config.limits.duration }}"/></label></td>
-            </tr>
-            <tr>
-                <td>{{ theUILang.FSpassword }}:</td>
-                <td align="right"><label><input name="FS_password" type="text" id="FS_password" class="Textbox"/>
-                    </label><input name="FS_lid" type="hidden" id="FS_lid" value=""/></td>
-            </tr>
-        </table>
-{#
-        <textarea name="FS_downlink" rows="2" style="width: 100%" readonly="readonly" id="FS_downlink"></textarea>
-#}
+        <div class="row mb-3">
+            <div class="position-relative">
+                <div class="input-group has-validation">
+                    <label class="input-group-text" for="FS_duration" class="form-label">{{ theUILang.FS_duration }}</label>
+                    <input type="number" id="FS_duration" name="FS_duration" value="{{ plugin.config.limits.duration }}" min="1" step="1" max="{{ plugin.config.limits.duration }}" class="form-control" required>
+                    <span class="input-group-text">{{ theUILang.FS_hours }}</span>
+
+                    <div class="invalid-tooltip">
+                        Please input a valid duration in hours: 1-{{ plugin.config.limits.duration }}.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{ window.passwordField("FS_password") }}
+
     </fieldset>
 
 {% endblock %}

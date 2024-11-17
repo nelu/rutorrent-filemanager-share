@@ -9,11 +9,12 @@ theUILang.FSdelmsg		= 'Vuoi veramente eliminare gli elementi selezionati?';
 theUILang.FSvdur		= 'Inserisci una durata valida';
 theUILang.FSfile		= 'File';
 theUILang.FSexpire		= 'Data di scadenza';
-theUILang.FSpassword		= 'Password';
+
 theUILang.FScreated		= 'Data di creazione';
 theUILang.FSdlink		= 'Link per il download';
 theUILang.FSdnumb		= 'Numero di download';
-theUILang.FSdhours		= 'Durata (ore)';
+theUILang.FS_hours		= 'ore';
+theUILang.FS_duration		= 'Durata';
 theUILang.FSadd			= 'Aggiungi';
 theUILang.FSedit		= 'Modifica';
 theUILang.FSshare		= 'Condividi...';
