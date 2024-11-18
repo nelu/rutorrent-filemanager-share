@@ -148,8 +148,8 @@ plugin.FileShare = function () {
 
     this.deleteEntries = () => {
 
-        const selectedEntries = $.map(table.rowSel, function (value, index) {
-            return self.entriesList[index.split('_fsh_')[1]].hash;
+        const selectedEntries = $.map(table.getSelected(), function (value) {
+            return self.entriesList[value.split('_fsh_')[1]].hash;
         });
 
         askYesNo(theUILang.FSdel, theUILang.FSdelmsg, function () {
