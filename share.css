@@ -6,10 +6,9 @@
     width: 16px;
     height: 16px;
 }
-#FS_main table td {
 
-padding-top: 3px;
-padding-bottom: 3px;
+td.stable-FileShare-col-0 {
+    white-space: pre;
 }
 
 /*
