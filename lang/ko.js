@@ -12,7 +12,7 @@ theUILang.FSexpire		= 'Expire';
 
 theUILang.FScreated		= 'Creation date';
 theUILang.FSdlink		= 'Download link';
-theUILang.FSdnumb		= 'Number of downloads';
+theUILang.FSdnumb		= 'Downloads';
 theUILang.FS_hours		= 'hours';
 theUILang.FS_duration		= 'Duration';
 theUILang.FSadd			= 'Add';

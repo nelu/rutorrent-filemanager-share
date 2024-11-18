@@ -1,14 +1,17 @@
-<table width="100%" border="0" cellspacing="0" cellpadding="2px">
-    <tr>
-        <td style="width:30px">
-            <input type="button" id="FS_refresh" class="flm-nav-refresh flm-sprite sprite-refresh" value="" style="padding: 2px;"/>
-        </td>
-        <td>
-            <a href="javascript:flm.ui.getDialogs().showDialog('flm-create-share');" id="FS_AddNew" class="Button"
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-auto">
+            <div class="btn-group" role="group" aria-label="File Share Navigation">
+                <button type="button" id="FS_refresh" class="btn w-auto p-0 m-0 flm-nav-refresh">
+                    <i class="flm-sprite sprite-refresh"></i>
+                </button>
 
-            style="padding: 1px 10px; background: #F0F0F0; width: 80px; height: 19px; border: 1px solid #A0A0A0; cursor: pointer"
-            >{{ theUILang.FSaddnew }}</a>
-        </td>
-    </tr>
-</table>
+                <a href="javascript:flm.share.create();"
+                   id="FS_AddNew" class="btn btn-primary btn-sm pe-1 pt-0 pb-0 ps-1 m-0" role="button">
+                    {{ theUILang.FSaddnew }}
+                </a>
+            </div>
+        </div>
 
+    </div>
+</div>

@@ -52,8 +52,12 @@ plugin.table = {
             container: "FileShare",
             format: plugin.table.format,
             onselect: plugin.table.entryMenu,
-            ondblclick: function(item) { return flm.share.viewDetails(item.id);},
-            ondelete: function() { return flm.share.deleteEntries();}
+            ondblclick: function (item) {
+                return flm.share.viewDetails(item.id);
+            },
+            ondelete: function () {
+                return flm.share.deleteEntries();
+            }
         };
 
 
@@ -68,7 +72,9 @@ plugin.table = {
             var table = plugin.table.get();
 
             if (table.selCount === 1) {
-                theContextMenu.add([theUILang['flm_popup_fsh-view'], function () {flm.share.viewDetails(id);}]);
+                theContextMenu.add([theUILang['flm_popup_fsh-view'], function () {
+                    flm.share.viewDetails(id);
+                }]);
                 theContextMenu.add([theUILang['flm_popup_fsh-view-fm'], function () {
                     var file = table.getValueById(id, 'file');
                     flm.showPath(flm.utils.basedir(file));
@@ -108,7 +114,7 @@ plugin.table = {
     },
 
     get: function () {
-        return  theWebUI.getTable("fsh");
+        return theWebUI.getTable("fsh");
     },
 
     updateColumnNames: function () {
@@ -127,107 +133,108 @@ plugin.FileShare = function () {
     let self = this;
     let table = plugin.table.get();
 
-    self = {
-
-        api: null,
-        entriesList: {},
+    this.api = null;
+    this.entriesList = {};
 
 
-        add: function (file, pass, duration) {
-
-            var allownolimit = parseFloat(plugin.config.nolimit);
-
-            let hasErr;
-
-            if (!$type(file) || file.length === 0) {
-                hasErr = 'Empty paths';
-            } else if (flm.utils.isDir(file)) {
-                hasErr = theUILang.fDiagInvalidname + ": " +file
-            } else if (!duration.match(/^\d+$/)) {
-                hasErr = theUILang.FSvdur;
-            } else if (allownolimit === 0 && duration === 0) {
-                hasErr = theUILang.FSnolimitoff;
-            } else if (this.islimited(duration)) {
-                hasErr = theUILang.FSmaxdur + ' ' + this.maxdur;
-            }
-
-            if (hasErr) {
-                const deferred = $.Deferred();
-                deferred.reject({errcode: 'error', msg:  hasErr});
-                return deferred.promise();
-            }
-
-            return this.api.post({method: 'add', target: file, pass: pass, duration: duration})
-                .then(function (r) {
-                    self.setEntriesList(r);
-                    return r;
-                });
-        },
-
-        del: function (entries) {
-
-            var deferred = $.Deferred();
-
-            if (!$type(entries) || entries.length === 0) {
-                deferred.reject('Empty paths');
-                return deferred.promise();
-            }
-            return this.api.post({method: 'del', entries: entries}).then(this.setEntriesList);
-        },
-
-        deleteEntries: function () {
-
-            const selectedEntries = $.map(table.rowSel, function(value, index) {
-                return  flm.share.entriesList[index.split('_fsh_')[1]].hash;
-            });
-
-            askYesNo(theUILang.FSdel, theUILang.FSdelmsg, function () {
-                flm.share.del(selectedEntries);
-            });
-        },
-
-        islimited: function (cur) {
-
-            var max = plugin.config.maxlinks;
-
-            return (max > 0) ? ((cur > max)) : false;
-        },
-
-        getEntries: function () {
-
-            return this.api.post({method: 'show'});
-
-        },
-
-        setEntriesList: function (entries) {
-            entries = entries.list || {};
-
-            self.entriesList = entries;
-            plugin.table.addEntries(entries);
-        },
-
-        refresh: function () {
-            this.getEntries().then(this.setEntriesList, function (err) {
-                return err;
-            });
-        },
-
-        viewDetails: function (id) {
-            let target = id.split('_fsh_')[1];
-            let data = flm.share.entriesList[target];
-
-            data.formatted = table.rowdata[id].fmtdata;
-            plugin.showDialog('fsh-view', data);
-        },
-
-        init: function () {
-            this.api = flm.client(plugin.path + 'fsh.php');
-            this.refresh();
-        }
-
+    this.init = () => {
+        this.api = flm.client(plugin.path + 'fsh.php');
+        this.refresh();
     };
 
-    return self;
+    this.create = () => {
+        plugin.showDialog('flm-create-share');
+    };
+
+    this.deleteEntries = () => {
+
+        const selectedEntries = $.map(table.rowSel, function (value, index) {
+            return self.entriesList[index.split('_fsh_')[1]].hash;
+        });
+
+        askYesNo(theUILang.FSdel, theUILang.FSdelmsg, function () {
+            flm.share.del(selectedEntries);
+        });
+    };
+
+    this.getEntries = () => {
+        return this.api.post({method: 'show'});
+    };
+
+    this.setEntriesList = (entries) => {
+        entries = entries.list || {};
+
+        self.entriesList = entries;
+        plugin.table.addEntries(entries);
+    };
+
+    this.refresh = () => {
+        this.getEntries().then(this.setEntriesList, function (err) {
+            return err;
+        });
+    };
+
+    this.viewDetails = (id) => {
+        let target = id.split('_fsh_')[1];
+        let data = flm.share.entriesList[target];
+
+        data['formatted'] = table.rowdata[id].fmtdata;
+        plugin.showDialog('fsh-view', data);
+    };
+
+    this.add = (file, pass, duration) => {
+
+        var allownolimit = parseFloat(plugin.config.nolimit);
+
+        let hasErr;
+
+        if (!$type(file) || file.length === 0) {
+            hasErr = 'Empty paths';
+        } else if (flm.utils.isDir(file)) {
+            hasErr = theUILang.fDiagInvalidname + ": " + file
+        } else if (!duration.match(/^\d+$/)) {
+            hasErr = theUILang.FSvdur;
+        } else if (allownolimit === 0 && duration === 0) {
+            hasErr = theUILang.FSnolimitoff;
+        } else if (this.islimited(duration)) {
+            hasErr = theUILang.FSmaxdur + ' ' + this.maxdur;
+        }
+
+        if (hasErr) {
+            const deferred = $.Deferred();
+            deferred.reject({errcode: 'error', msg: hasErr});
+            return deferred.promise();
+        }
+
+        return this.api.post({
+            method: 'add',
+            target: flm.stripJailPath(file),
+            pass: pass,
+            duration: duration
+        })
+            .then(function (r) {
+                self.setEntriesList(r);
+                return r;
+            });
+    };
+    this.del = (entries) => {
+        var deferred = $.Deferred();
+
+        if (!$type(entries) || entries.length === 0) {
+            deferred.reject('Empty paths');
+            return deferred.promise();
+        }
+        return this.api.post({method: 'del', entries: entries}).then(this.setEntriesList);
+    };
+
+    this.islimited = (cur) => {
+
+        var max = plugin.config.maxlinks;
+
+        return (max > 0) ? ((cur > max)) : false;
+    };
+
+    return this;
 }
 
 plugin.setFileManagerMenuEntries = function (menu, path) {
@@ -292,15 +299,15 @@ plugin.setUI = function (flmUi) {
     flm.views.getView(viewsPath + 'table-header', {apiUrl: flm.api.endpoint},
         function (view) {
 
-        $('#FileShare').prepend(view);
+            $('#FileShare').prepend(view);
 
-        setTimeout(function () {
-            $('#FS_refresh').click(function () {
-                flm.share.refresh();
-            });
-        }, 100);
+            setTimeout(function () {
+                $('#FS_refresh').click(function () {
+                    flm.share.refresh();
+                });
+            }, 100);
 
-    });
+        });
     plugin.renameTab("FileShare", theUILang.FSshow);
     plugin.table.updateColumnNames();
 };
