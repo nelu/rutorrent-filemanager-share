@@ -21,6 +21,7 @@ theUILang.FSshare		= 'Condividi...';
 theUILang.FSlinkcreate		= 'Link per il download creato';
 theUILang.FSlinkedit		= 'Link per il download modificato';
 theUILang.FScopylink		= 'Copia il collegamento';
+theUILang.FS_link_limit_reached = 'Reached link limit';
 theUILang.FSmaxdur		= 'La durata massima permessa è:';
 theUILang.FSnolimit		= '[Durata illimitata consentita: 0]';
 theUILang.FSnolimitoff		= 'Durata illimitata non consentita';

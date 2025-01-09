@@ -1,28 +1,31 @@
 <?php
-
 // duration & links limits
 // 0 = unlimited
-$limits['duration'] = 750;        // maximum duration hours
-$limits['links'] = 0;   //maximum sharing links per user
 
-// extra
-$limits['nolimit'] = 0; // allow unlimited duration (=~ 100 years) with duration = 0 (the maximum duration limit is kept) [1 = yes | 0 = no]
+// max expire time for a share in hours
+$limits['duration'] = $_ENV['RU_FLM_SHARE_MAX_DURATION'] ?? 0; // 0 - unlimited
 
-// url with the path where a symlink to share.php can be found
-// example: http://mydomain.com/share.php
-// relative url example
-// $downloadpath = '//'.$_SERVER['HTTP_HOST'].'/rutorrent/plugins/filemanager-share/share.php';
-$downloadpath = $_ENV['RU_FLM_SHARE_ENDPOINT'] ?? '';
+// max links per user
+$limits['links'] = $_ENV['RU_FLM_SHARE_MAX_LINKS'] ?? 0; // 0 - unlimited
 
-// automatically remove shares - only when removing the file or the containing directory
-$autoRemove = false;
+return [
+    'limits' => $limits,
 
-// automatically remove expired shares - called only when removing
-$purgeExpired = true;
+    // whether a password is mandatory for link creation
+    'require_password' => false,
 
-return ['limits' => $limits,
-        'endpoint' => $downloadpath,
-        "key" => $_ENV['RU_FLM_SHARE_KEY'] ?? "mycu570m3ncryp710nk3y",
-        "remove_share_on_file_delete" => $autoRemove,
-        "purge_expired_shares" => $purgeExpired
+    // url with the path where a symlink to share.php can be found
+    // example: http://mydomain.com/share.php
+    // relative url example
+    // 'endpoint' = '//'.$_SERVER['HTTP_HOST'].'/rutorrent/plugins/filemanager-share/share.php';
+    'endpoint' => $_ENV['RU_FLM_SHARE_ENDPOINT'] ?? '',
+
+    // key used for storing encrypted data
+    "key" => $_ENV['RU_FLM_SHARE_KEY'] ?? "mycu570m3ncryp710nk3y",
+
+    // automatically remove shares - only when removing the file or the containing directory
+    "remove_share_on_file_delete" => false,
+
+    // automatically remove expired shares - called only when removing
+    "purge_expired_shares" => true
 ];

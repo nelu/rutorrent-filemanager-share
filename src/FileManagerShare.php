@@ -6,7 +6,7 @@ use CachedEcho;
 use Exception;
 use Flm\WebController;
 use LFS;
-use \rCache;
+use rCache;
 use ReflectionMethod;
 use SendFile;
 use User;
@@ -41,7 +41,7 @@ class FileManagerShare extends WebController
     {
         parent::__construct($config);
 
-        $this->storage = new rCache('/'.(new \ReflectionClass($this))->getShortName());
+        $this->storage = new rCache('/' . (new \ReflectionClass($this))->getShortName());
         $this->encoder = new Crypt();
 
         # we need the full path from the storage engine
@@ -52,13 +52,19 @@ class FileManagerShare extends WebController
 
     }
 
-    public function isExpired($share = null): bool
+    /**
+     * @param $encrypted
+     * @param $withKey
+     * @return array
+     * @throws Exception
+     */
+    public static function From($encrypted, $withKey): array
     {
-        if ($share == null) {
-            $share = $this->data;
-        }
-        $share = (array)$share;
-        return (time() >= $share['expire']);
+        Crypt::setEncryptionKey($withKey);
+
+        $data = json_decode(Crypt::fromEncoded(trim($encrypted, '/'))->getString(), true);
+
+        return ['user' => $data[0], 'token' => $data[1]];
     }
 
     /**
@@ -79,10 +85,8 @@ class FileManagerShare extends WebController
             throw new Exception('Invalid file: ' . $file);
         }
 
-        if ($limits['nolimit'] == 0) {
-            if ($duration == 0) {
-                throw new Exception('No limit not allowed');
-            }
+        if (intval($params->duration) == 0 && intval($limits['duration']) != 0) {
+            throw new Exception('No limit not allowed');
         }
 
         if ($this->islimited('duration', $duration)) {
@@ -92,7 +96,7 @@ class FileManagerShare extends WebController
         if ($this->islimited('links', count((array)$this->getShares()))) {
             throw new Exception('Link limit reached');
         }
-
+        $duration = intval($params->duration);
         if ($password === FALSE) {
             $password = '';
         }
@@ -156,20 +160,6 @@ class FileManagerShare extends WebController
         return (object)$this->config['share'];
     }
 
-    public function isValidPassword($pass)
-    {
-        Crypt::setEncryptionKey($pass);
-
-        try {
-            $credentials = json_decode(Crypt::fromEncoded($this->data['credentials'])->getString(), true);
-        } catch (Exception $e) {
-            // invalid pass
-            $credentials = [];
-        }
-
-        return isset($credentials['u']);
-    }
-
     public function read($file)
     {
         $result = (object)['hash' => $file];
@@ -186,8 +176,7 @@ class FileManagerShare extends WebController
     protected function write($token = null)
     {
         $data = $this->data;
-        if($token != null)
-        {
+        if ($token != null) {
             $data = array_merge($data, ['hash' => $this->getStoreFile($token)]);
         }
 
@@ -250,24 +239,45 @@ class FileManagerShare extends WebController
 
     public function showNotFound($file = null)
     {
-        if(is_null($file))
-        {
+        if (is_null($file)) {
             $file = $this->data['file'];
         }
         header("HTTP/1.1 404 Not Found");
         CachedEcho::send(
-            'File not found' . is_null($file) ? '' : ': '.basename($file),
+            'File not found' . is_null($file) ? '' : ': ' . basename($file),
             "text/html"
         );
     }
 
+    public function isExpired($share = null): bool
+    {
+        if ($share == null) {
+            $share = $this->data;
+        }
+        $share = (array)$share;
+        return $share['expire'] !== 0 && (time() >= $share['expire']);
+    }
+
     public function showPasswordForm($withError = false)
     {
-        if($withError)
-        {
+        if ($withError) {
             header("HTTP/1.1 403 Forbidden");
         }
         CachedEcho::send(include(__DIR__ . '/../views/password-form.php'), "text/html");
+    }
+
+    public function isValidPassword($pass)
+    {
+        Crypt::setEncryptionKey($pass);
+
+        try {
+            $credentials = json_decode(Crypt::fromEncoded($this->data['credentials'])->getString(), true);
+        } catch (Exception $e) {
+            // invalid pass
+            $credentials = [];
+        }
+
+        return isset($credentials['u']);
     }
 
     public function del($input)
@@ -316,21 +326,6 @@ class FileManagerShare extends WebController
             $this->data[$id]['password'] = $password;
         }
         //$this->write();
-    }
-
-    /**
-     * @param $encrypted
-     * @param $withKey
-     * @return array
-     * @throws Exception
-     */
-    public static function From($encrypted, $withKey) : array
-    {
-        Crypt::setEncryptionKey($withKey);
-
-        $data = json_decode(Crypt::fromEncoded(trim($encrypted,'/'))->getString(), true);
-
-        return ['user' => $data[0], 'token' => $data[1]];
     }
 
 }

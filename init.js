@@ -1,67 +1,74 @@
-plugin.loadCSS('share');
+plugin.endpoint = $type(plugin.config.endpoint) && plugin.config.endpoint !== ''
+    ? plugin.config.endpoint
+    : window.location.href.replace(/[\/?#]+$/, '') + '/' + plugin.path + 'share.php';
+
+plugin.containerId = "FileShare";
 
 plugin.table = {
 
     addEntries: function (data) {
-
-
         let table = this.get();
+        let self = this;
         table.clearRows();
 
-        var hostPath = $type(plugin.config.endpoint) && plugin.config.endpoint !== ''
-            ? plugin.config.endpoint
-            : flm.utils.rtrim(window.location.href, '/') + '/' + plugin.path + 'share.php';
-
         $.each(data, function (ndx, item) {
-
             table.addRowById({
                 file: item.file,
                 downloads: parseInt(item.downloads),
                 created: item.created,
                 size: item.size,
                 time: item.expire,
-                link: hostPath + '/' + ndx
-            }, "_fsh_" + ndx, 'Icon_File');
+                link: plugin.endpoint + '/' + ndx
+            }, self.getEntryId(ndx), flm.utils.getICO(item.file));
         });
 
         table.refreshRows();
     },
 
     create: function () {
-        plugin.attachPageToTabs($('<div>').attr("id", "FileShare").addClass('table_tab').get(0), 'FileShare');
+        plugin.attachPageToTabs(
+            $('<div>').attr("id", plugin.containerId).addClass('table_tab').get(0),
+            plugin.containerId
+        );
 
         theWebUI.tables.fsh = {
             obj: new dxSTable(),
             columns: [{text: '', width: "210px", id: "file", type: TYPE_STRING}, {
-                text: '',
-                width: "65px",
-                id: "downloads",
-                type: TYPE_NUMBER
+                text: '', width: "65px", id: "downloads", type: TYPE_NUMBER
             }, {text: theUILang.Size, width: "60px", id: "size", type: TYPE_NUMBER}, {
-                text: '',
-                width: "120px",
-                id: "created",
-                type: TYPE_NUMBER,
-                "align": ALIGN_CENTER
+                text: '', width: "120px", id: "created", type: TYPE_NUMBER, "align": ALIGN_CENTER
             }, {text: '', width: "120px", id: "time", type: TYPE_NUMBER, "align": ALIGN_CENTER}, {
-                text: '',
-                width: "310px",
-                id: "link",
-                type: TYPE_STRING
+                text: '', width: "310px", id: "link", type: TYPE_STRING
             }],
-            container: "FileShare",
-            format: plugin.table.format,
-            onselect: plugin.table.entryMenu,
-            ondblclick: function (item) {
-                return flm.share.viewDetails(item.id);
-            },
-            ondelete: function () {
-                return flm.share.deleteEntries();
-            }
+            container: plugin.containerId,
+            format: this.format,
+            onselect: this.entryMenu,
+            ondblclick: (item) => flm.share.viewDetails(item.id),
+            ondelete: () => flm.share.deleteEntries()
         };
 
+        plugin.resizeBottom = theWebUI.resizeBottom;
+        theWebUI.resizeBottom = function (w, h) {
 
+            if (w !== null) {
+                w -= 8;
+            }
+
+            if (h !== null) {
+                h -= ($("#tabbar").height());
+                h -= 2;
+            }
+
+            var table = theWebUI.getTable("fsh");
+            if (table) {
+                table.resize(w, h);
+            }
+
+            plugin.resizeBottom.call(this, w, h);
+        };
     },
+
+    getEntryId: (id) => "_fsh_" + id,
 
     entryMenu: function (e, id) {
 
@@ -77,7 +84,7 @@ plugin.table = {
                 }]);
                 theContextMenu.add([theUILang['flm_popup_fsh-view-fm'], function () {
                     var file = table.getValueById(id, 'file');
-                    flm.showPath(flm.utils.basedir(file));
+                    flm.showPath(flm.utils.basedir(file), flm.utils.basename(file));
                 }]);
             }
 
@@ -118,7 +125,7 @@ plugin.table = {
     },
 
     updateColumnNames: function () {
-        var table = theWebUI.getTable("fsh");
+        var table = this.get();
 
         table.renameColumnById('file', theUILang.FSfile);
         table.renameColumnById('downloads', theUILang.FSdnumb);
@@ -128,21 +135,19 @@ plugin.table = {
     }
 };
 
-
-plugin.FileShare = function () {
+let FlmFileShare = function () {
     let self = this;
     let table = plugin.table.get();
 
     this.api = null;
     this.entriesList = {};
 
-
     this.init = () => {
         this.api = flm.client(plugin.path + 'fsh.php');
         this.refresh();
     };
 
-    this.create = () => {
+    this.showCreate = () => {
         plugin.showDialog('flm-create-share');
     };
 
@@ -151,9 +156,14 @@ plugin.FileShare = function () {
         const selectedEntries = $.map(table.getSelected(), function (value) {
             return self.entriesList[value.split('_fsh_')[1]].hash;
         });
-
         askYesNo(theUILang.FSdel, theUILang.FSdelmsg, function () {
-            flm.share.del(selectedEntries);
+            // unbinding call and add flm start btn class to bind on
+            $("#yesnoOK").addClass('flm-diag-start').off();
+
+            flm.ui.dialogs
+                    .onStart(() => flm.share.del(selectedEntries), 'yesnoDlg', true)
+                    .enableStartButton('yesnoDlg')
+                    .trigger('click', [selectedEntries]);
         });
     };
 
@@ -170,6 +180,7 @@ plugin.FileShare = function () {
 
     this.refresh = () => {
         this.getEntries().then(this.setEntriesList, function (err) {
+            console.log(err);
             return err;
         });
     };
@@ -182,77 +193,68 @@ plugin.FileShare = function () {
         plugin.showDialog('fsh-view', data);
     };
 
-    this.add = (file, pass, duration) => {
+    this.add = (path, pass, duration) => {
+        let file = flm.stripJailPath(path.val());
 
-        var allownolimit = parseFloat(plugin.config.nolimit);
+        let validation = flm.actions.doValidation([
+            [!file.length || flm.utils.isDir(file), theUILang.fDiagInvalidname, path],
+            [this.hasLinkLimit(), theUILang.FS_link_limit_reached + ': ' + plugin.config.limits.links, path],
+            [!duration.val().match(/^\d+$/), theUILang.FSvdur, duration],
+            [parseInt(duration.val()) === 0 && plugin.config.limits.duration > 0, theUILang.FSnolimitoff, duration],
+            [plugin.config.require_password && pass.val().length === 0, 'Required', pass]
+        ]);
 
-        let hasErr;
-
-        if (!$type(file) || file.length === 0) {
-            hasErr = 'Empty paths';
-        } else if (flm.utils.isDir(file)) {
-            hasErr = theUILang.fDiagInvalidname + ": " + file
-        } else if (!duration.match(/^\d+$/)) {
-            hasErr = theUILang.FSvdur;
-        } else if (allownolimit === 0 && duration === 0) {
-            hasErr = theUILang.FSnolimitoff;
-        } else if (this.islimited(duration)) {
-            hasErr = theUILang.FSmaxdur + ' ' + this.maxdur;
-        }
-
-        if (hasErr) {
-            const deferred = $.Deferred();
-            deferred.reject({errcode: 'error', msg: hasErr});
-            return deferred.promise();
-        }
-
-        return this.api.post({
-            method: 'add',
-            target: flm.stripJailPath(file),
-            pass: pass,
-            duration: duration
-        })
-            .then(function (r) {
-                self.setEntriesList(r);
-                return r;
-            });
+        return (validation.state() === "rejected")
+            ? validation
+            : validation.then(() => this.api.post({
+                method: 'add',
+                target: flm.stripJailPath(file),
+                pass: pass.val(),
+                duration: duration.val()
+            }))
+                .then((r) => {
+                    self.setEntriesList(r);
+                    let shareId = Object.entries(self.entriesList)
+                        .filter(entry => entry[1].hash === r['new'])
+                        .reduce((res, entry) => entry[0], false);
+                    plugin.table.get().selectRowById(plugin.table.getEntryId(shareId));
+                    theTabs.show(plugin.containerId);
+                    r.new = shareId;
+                    return r;
+                });
     };
+
     this.del = (entries) => {
-        var deferred = $.Deferred();
+        let validation = flm.actions.doValidation([
+            [!$type(entries) || entries.length === 0, theUILang.flm_empty_selection, $("#yesnoOK")],
+        ]);
 
-        if (!$type(entries) || entries.length === 0) {
-            deferred.reject('Empty paths');
-            return deferred.promise();
-        }
-        return this.api.post({method: 'del', entries: entries}).then(this.setEntriesList);
+        return (validation.state() === "rejected")
+            ? validation
+            : validation.then(() => this.api.post({method: 'del', entries: entries}))
+                .done(this.setEntriesList);
     };
 
-    this.islimited = (cur) => {
-
-        var max = plugin.config.maxlinks;
-
-        return (max > 0) ? ((cur > max)) : false;
+    this.hasLinkLimit = (cur) => {
+        cur = cur || plugin.table.get().rows
+        const max = plugin.config.limits.links;
+        return (max > 0) ? (cur >= max) : false;
     };
 
     return this;
 }
 
-plugin.setFileManagerMenuEntries = function (menu, path) {
-
-    var pathIsDir = flm.utils.isDir(path);
-
+plugin.setFlmContextMenu = function (menu, path) {
     if (plugin.enabled) {
+        let createMenu = flm.ui.getContextMenuEntryPosition(menu, theUILang.fcreate, 1);
 
-        var createPos = thePlugins.get('filemanager').ui.getContextMenuEntryPosition(menu, theUILang.fcreate, 1);
-
-        if (createPos > -1) {
-            menu[createPos][2].push([theUILang.FSshare, (!pathIsDir && !flm.share.islimited(theWebUI.getTable("fsh").rows)) ? function () {
-                plugin.showDialog('flm-create-share');
-            } : null]);
-        }
-
+        (createMenu > -1) && flm.ui.addContextMenu(menu[createMenu][2],
+            [theUILang.FSshare, (!flm.utils.isDir(path) && !flm.share.hasLinkLimit())
+                ? () => flm.share.showCreate()
+                : null
+            ]
+        );
     }
-
 };
 
 plugin.showDialog = function (what, templateData) {
@@ -262,9 +264,7 @@ plugin.showDialog = function (what, templateData) {
 
     diagConf.options = {
         //	public_endpoint: plugin.config.public_endpoint,
-        views: "flm-share",
-        plugin: plugin,
-        data: templateData
+        views: "flm-share", plugin: plugin, data: templateData
     };
 
     return dialogs.setDialogConfig(what, diagConf).showDialog(what);
@@ -273,101 +273,59 @@ plugin.showDialog = function (what, templateData) {
 plugin.setUI = function (flmUi) {
 
     var viewsPath = plugin.path + 'views/';
-    let dialogs = flm.ui.dialogs;
+    let dialogs = flmUi.dialogs;
 
     flm.views.namespaces['flm-share'] = viewsPath;
 
-    dialogs.setDialogConfig('flm-create-share',
-        {
-            options: {
-                views: "flm-share"
-            },
-            pathbrowse: false,
-            modal: false,
-            template: viewsPath + "dialog-create-share"
-        }
-    ).setDialogConfig('fsh-view',
-        {
-            pathbrowse: false,
-            modal: false,
-            template: viewsPath + "dialog-view"
-        }
-    );
+    dialogs.setDialogConfig('flm-create-share', {
+        options: {
+            views: "flm-share"
+        },
+        pathbrowse: false,
+        modal: false,
+        template: viewsPath + "dialog-create-share"
+    }).setDialogConfig('fsh-view', {
+        pathbrowse: false,
+        modal: false,
+        template: viewsPath + "dialog-view"
+    });
 
-    window.flm.ui.filenav.onSetEntryMenu(plugin.setFileManagerMenuEntries);
+    flmUi.filenav.onSetEntryMenu(plugin.setFlmContextMenu);
 
-    flm.views.getView(viewsPath + 'table-header', {apiUrl: flm.api.endpoint},
-        function (view) {
+    flm.views.getView(viewsPath + 'table-header',
+        {apiUrl: flm.api.endpoint},
+        (view) => {
 
-            $('#FileShare').prepend(view);
+            $('#' + plugin.containerId).prepend(view);
 
             setTimeout(function () {
                 $('#FS_refresh').click(function () {
                     flm.share.refresh();
                 });
-            }, 100);
-
+            });
         });
-    plugin.renameTab("FileShare", theUILang.FSshow);
+    plugin.renameTab(plugin.containerId, theUILang.FSshow);
     plugin.table.updateColumnNames();
 };
 
-plugin.flmConfig = theWebUI.config;
-theWebUI.config = function (data) {
-    plugin.table.create();
-    plugin.flmConfig.call(this, data);
+plugin.init = () => {
+    plugin.setUI(flm.ui);
+    flm.share = new FlmFileShare();
+    flm.share.init();
+    plugin.markLoaded();
 };
 
-plugin.onShow = theTabs.onShow;
-theTabs.onShow = function (id) {
-    if (id === "FileShare") {
-        flm.share.refresh();
-    }
-    plugin.onShow.call(this, id);
-};
-
-plugin.onLangLoaded = function () {
-
-    if (this.enabled) {
-        //onSetEntryMenu
-        thePlugins.get('filemanager').ready()
-            .then(function (flmUi) {
-                plugin.setUI(flmUi);
-                flm.share = new plugin.FileShare();
-                flm.share.init();
-            }, function (reason) {
-
-            });
-
-
-    }
-};
-
+plugin.onLangLoaded = () => thePlugins.get('filemanager').loaded().done(plugin.init);
 
 plugin.onRemove = function () {
-    this.removePageFromTabs('FileShare');
+    this.removePageFromTabs(this.table.containerId);
     $('[id^="FS_"]').remove();
 };
 
+if (plugin.enabled) {
+    $(document).on('theWebUI:config', () => plugin.canChangeTabs() && plugin.table.create());
+    $(document).on('theTabs:onShow', (id) => (id === plugin.containerId) && flm.share && flm.share.refresh());
+    plugin.loadLang();
+    plugin.loadCSS('share');
+}
 
-plugin.resizeBottom = theWebUI.resizeBottom;
-theWebUI.resizeBottom = function (w, h) {
-
-    if (w !== null) {
-        w -= 8;
-    }
-
-    if (h !== null) {
-        h -= ($("#tabbar").height());
-        h -= 2;
-    }
-
-    var table = theWebUI.getTable("fsh");
-    if (table) {
-        table.resize(w, h);
-    }
-
-    plugin.resizeBottom.call(this, w, h);
-};
-
-plugin.loadLang();

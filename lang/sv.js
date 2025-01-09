@@ -14,14 +14,15 @@ theUILang.FScreated		= 'Creation date';
 theUILang.FSdlink		= 'Download link';
 theUILang.FSdnumb		= 'Downloads';
 theUILang.FS_hours		= 'hours';
-theUILang.FS_duration		= 'Duration';
+theUILang.FS_duration		= 'Expire after';
 theUILang.FSadd			= 'Add';
 theUILang.FSedit		= 'Edit';
 theUILang.FSshare		= 'Share...';
 theUILang.FSlinkcreate		= 'Download link created';
 theUILang.FSlinkedit		= 'Download link edited';
 theUILang.FScopylink		= 'Copy link';
-theUILang.FSmaxdur		= 'Maximum allowed duration is:';
+theUILang.FS_link_limit_reached = 'Reached link limit';
+theUILang.FSmaxdur		= 'Allowed duration is';
 theUILang.FSnolimit		= '[No limit is allowed: 0]';
 theUILang.FSnolimitoff		= 'No limit is not allowed';
 

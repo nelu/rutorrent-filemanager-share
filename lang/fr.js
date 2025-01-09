@@ -21,6 +21,7 @@ theUILang.FSshare		= 'Créer un lien de partage';
 theUILang.FSlinkcreate		= 'Lien de téléchargement créé';
 theUILang.FSlinkedit		= 'Lien de téléchargement édité';
 theUILang.FScopylink		= 'Copier le lien';
+theUILang.FS_link_limit_reached = 'Reached link limit';
 theUILang.FSmaxdur		= 'Durée maxi autorisée est :';
 theUILang.FSnolimit		= '[Pas de limite est autorisée : 0]';
 theUILang.FSnolimitoff		= 'Durée illimitée n\'est pas autorisée';

@@ -6,21 +6,25 @@
 
     <fieldset>
         <legend>Options:</legend>
-        <div class="row mb-3">
+        <div class="row mb-4">
             <div class="position-relative">
-                <div class="input-group has-validation">
-                    <label class="input-group-text" for="FS_duration" class="form-label">{{ theUILang.FS_duration }}</label>
-                    <input type="number" id="FS_duration" name="FS_duration" value="{{ plugin.config.limits.duration }}" min="1" step="1" max="{{ plugin.config.limits.duration }}" class="form-control" required>
-                    <span class="input-group-text">{{ theUILang.FS_hours }}</span>
+                <div class="input-group has-validation col-md">
+                    <label  for="FS_duration" class="input-group-text form-label m-0 pt-1 pb-1">{{ theUILang.FS_duration }}</label>
+                    <input type="number" id="FS_duration" name="FS_duration"
+                           value="{{ plugin.config.limits.duration }}"
+                           min="{{ plugin.config.limits.duration ? 1 : 0 }}" step="1" max="{{ plugin.config.limits.duration }}"
+                           class="form-control m-0 p-1" required>
+                    <span class="input-group-text m-0 p-1">{{ theUILang.FS_hours }}</span>
 
                     <div class="invalid-tooltip">
-                        Please input a valid duration in hours: 1-{{ plugin.config.limits.duration }}.
+                        {{ theUILang.FSmaxdur }}: 1-{{ plugin.config.limits.duration }}.
                     </div>
                 </div>
             </div>
         </div>
-
-        {{ window.passwordField("FS_password") }}
+        <div class="row mb-3">
+            {{ window.passwordField("FS_password") }}
+        </div>
 
     </fieldset>
 
@@ -37,39 +41,25 @@
 
 {% block scripts %}
 <script>
-(function (global) {
+(function () {
     var dialogs = flm.ui.getDialogs();
     var diagId = dialogs.getDialogId('flm-create-share');
     dialogs.createDirBrowser(diagId, true);
     let table = theWebUI.getTable("fsh");
 
     dialogs.onStart(function () {
+        var file = dialogs.dirBrowserInput(diagId).val();
         return flm.share.add(
-            dialogs.getTargetPath(diagId),
-            $('#FS_password').val(),
-            $('#FS_duration').val()
+            dialogs.dirBrowserInput(diagId),
+            $('#FS_password'),
+            $('#FS_duration')
         ).then(function (r) {
-            console.log(r);
-/*            let entry = $.map( r.list, function( value, index ) {
-                return value.hash === r.new ? index : null;
-            });
-            var link = table.getValueById('_fsh_' + entry[0], 'link');
-
-            self.noty = $.noty({
-                text: theUILang.FSlinkcreate + ': ' + dialogs.getTargetPath(diagId),
-                layout: 'bottomLeft',
-                type: 'success',
-                timeout: 10000,
-                closeOnSelfClick: true
-            });
-            */
-            return r;
-        }, function (err) {
-            // prevent default error logging from filemanager dialog actions
-            flm.utils.logError(err.errcode || 'error',  err.msg, 'filemanager-share');
-           // return deferred.reject(err);
+            var link = table.getValueById(thePlugins.get('filemanager-share').table.getEntryId(r.new), 'link');
+            return {
+                notify: [theUILang.FSlinkcreate + ': ' + file + ' -> ' + link, ]
+            };
         });
     });
-})(window);
+})();
 </script>
 {% endblock %}
