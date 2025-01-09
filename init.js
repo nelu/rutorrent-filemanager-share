@@ -290,7 +290,7 @@ plugin.setUI = function (flmUi) {
         template: viewsPath + "dialog-view"
     });
 
-    flmUi.filenav.onSetEntryMenu(plugin.setFlmContextMenu);
+    flmUi.filenav.onContextMenu(plugin.setFlmContextMenu);
 
     flm.views.getView(viewsPath + 'table-header',
         {apiUrl: flm.api.endpoint},
