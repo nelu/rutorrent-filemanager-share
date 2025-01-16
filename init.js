@@ -1,3 +1,4 @@
+
 plugin.endpoint = $type(plugin.config.endpoint) && plugin.config.endpoint !== ''
     ? plugin.config.endpoint
     : window.location.href.replace(/[\/?#]+$/, '') + '/' + plugin.path + 'share.php';
@@ -11,16 +12,8 @@ plugin.table = {
         let self = this;
         table.clearRows();
 
-        $.each(data, function (ndx, item) {
-            table.addRowById({
-                file: item.file,
-                downloads: parseInt(item.downloads),
-                created: item.created,
-                size: item.size,
-                time: item.expire,
-                link: plugin.endpoint + '/' + ndx
-            }, self.getEntryId(ndx), flm.utils.getICO(item.file));
-        });
+        $.each(data, (ndx, item) =>
+            table.addRowById(flm.share.shareEntry(ndx, item), self.getEntryId(ndx), flm.utils.getICO(item.file)));
 
         table.refreshRows();
     },
@@ -135,127 +128,6 @@ plugin.table = {
     }
 };
 
-let FlmFileShare = function () {
-    let self = this;
-    let table = plugin.table.get();
-
-    this.api = null;
-    this.entriesList = {};
-
-    this.init = () => {
-        this.api = flm.client(plugin.path + 'fsh.php');
-        this.refresh();
-    };
-
-    this.showCreate = () => {
-        plugin.showDialog('flm-create-share');
-    };
-
-    this.deleteEntries = () => {
-
-        const selectedEntries = $.map(table.getSelected(), function (value) {
-            return self.entriesList[value.split('_fsh_')[1]].hash;
-        });
-        askYesNo(theUILang.FSdel, theUILang.FSdelmsg, function () {
-            // unbinding call and add flm start btn class to bind on
-            $("#yesnoOK").addClass('flm-diag-start').off();
-
-            flm.ui.dialogs
-                    .onStart(() => flm.share.del(selectedEntries), 'yesnoDlg', true)
-                    .enableStartButton('yesnoDlg')
-                    .trigger('click', [selectedEntries]);
-        });
-    };
-
-    this.getEntries = () => {
-        return this.api.post({method: 'show'});
-    };
-
-    this.setEntriesList = (entries) => {
-        entries = entries.list || {};
-
-        self.entriesList = entries;
-        plugin.table.addEntries(entries);
-    };
-
-    this.refresh = () => {
-        this.getEntries().then(this.setEntriesList, function (err) {
-            console.log(err);
-            return err;
-        });
-    };
-
-    this.viewDetails = (id) => {
-        let target = id.split('_fsh_')[1];
-        let data = flm.share.entriesList[target];
-
-        data['formatted'] = table.rowdata[id].fmtdata;
-        plugin.showDialog('fsh-view', data);
-    };
-
-    this.add = (path, pass, duration) => {
-        let file = flm.stripJailPath(path.val());
-
-        let validation = flm.actions.doValidation([
-            [!file.length || flm.utils.isDir(file), theUILang.fDiagInvalidname, path],
-            [this.hasLinkLimit(), theUILang.FS_link_limit_reached + ': ' + plugin.config.limits.links, path],
-            [!duration.val().match(/^\d+$/), theUILang.FSvdur, duration],
-            [parseInt(duration.val()) === 0 && plugin.config.limits.duration > 0, theUILang.FSnolimitoff, duration],
-            [plugin.config.require_password && pass.val().length === 0, 'Required', pass]
-        ]);
-
-        return (validation.state() === "rejected")
-            ? validation
-            : validation.then(() => this.api.post({
-                method: 'add',
-                target: flm.stripJailPath(file),
-                pass: pass.val(),
-                duration: duration.val()
-            }))
-                .then((r) => {
-                    self.setEntriesList(r);
-                    let shareId = Object.entries(self.entriesList)
-                        .filter(entry => entry[1].hash === r['new'])
-                        .reduce((res, entry) => entry[0], false);
-                    plugin.table.get().selectRowById(plugin.table.getEntryId(shareId));
-                    theTabs.show(plugin.containerId);
-                    r.new = shareId;
-                    return r;
-                });
-    };
-
-    this.del = (entries) => {
-        let validation = flm.actions.doValidation([
-            [!$type(entries) || entries.length === 0, theUILang.flm_empty_selection, $("#yesnoOK")],
-        ]);
-
-        return (validation.state() === "rejected")
-            ? validation
-            : validation.then(() => this.api.post({method: 'del', entries: entries}))
-                .done(this.setEntriesList);
-    };
-
-    this.hasLinkLimit = (cur) => {
-        cur = cur || plugin.table.get().rows
-        const max = plugin.config.limits.links;
-        return (max > 0) ? (cur >= max) : false;
-    };
-
-    return this;
-}
-
-plugin.setFlmContextMenu = function (menu, path) {
-    if (plugin.enabled) {
-        let createMenu = flm.ui.getContextMenuEntryPosition(menu, theUILang.fcreate, 1);
-
-        (createMenu > -1) && flm.ui.addContextMenu(menu[createMenu][2],
-            [theUILang.FSshare, (!flm.utils.isDir(path) && !flm.share.hasLinkLimit())
-                ? () => flm.share.showCreate()
-                : null
-            ]
-        );
-    }
-};
 
 plugin.showDialog = function (what, templateData) {
 
@@ -290,7 +162,6 @@ plugin.setUI = function (flmUi) {
         template: viewsPath + "dialog-view"
     });
 
-    flmUi.filenav.onContextMenu(plugin.setFlmContextMenu);
 
     flm.views.getView(viewsPath + 'table-header',
         {apiUrl: flm.api.endpoint},
@@ -308,14 +179,17 @@ plugin.setUI = function (flmUi) {
     plugin.table.updateColumnNames();
 };
 
-plugin.init = () => {
+plugin.init = (module) => {
     plugin.setUI(flm.ui);
-    flm.share = new FlmFileShare();
+    flm.share = new module.FileManagerShare(plugin);
+    flm.ui.filenav.onContextMenu(flm.share.setFlmContextMenu);
     flm.share.init();
     plugin.markLoaded();
 };
 
-plugin.onLangLoaded = () => thePlugins.get('filemanager').loaded().done(plugin.init);
+plugin.onLangLoaded = () => Promise.all([thePlugins.get('filemanager').loaded()])
+        .then(() => import('./' + plugin.path + 'js/share.js'))
+        .then(plugin.init);
 
 plugin.onRemove = function () {
     this.removePageFromTabs(this.table.containerId);
