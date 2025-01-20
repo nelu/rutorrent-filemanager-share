@@ -22,7 +22,7 @@ return [
     'endpoint' => $_ENV['RU_FLM_SHARE_ENDPOINT'] ?? '',
 
     // key used for storing encrypted data
-    "key" => $_ENV['RU_FLM_SHARE_KEY'] ?? "mycu570m3ncryp710nk3y",
+    "key" => $_ENV['RU_FLM_SHARE_KEY'] ?? "",
 
     // automatically remove shares - only when removing the file or the containing directory
     "remove_share_on_file_delete" => false,

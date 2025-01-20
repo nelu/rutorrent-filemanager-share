@@ -32,7 +32,7 @@
                     {{ window.showMultiple(selectedEntries, true) }}
                 </fieldset>
             {% else %}
-                {{ window.pathBrowser(selectedTarget, theUILang.FSfile, true) }}
+                {{ window.pathBrowser(selectedTarget, theUILang.FSfile, "", "disabled readonly") }}
             {% endif %}
             <fieldset>
                 <legend>Options:</legend>
@@ -78,24 +78,13 @@
     <script>
         (function () {
             var dialogs = flm.ui.getDialogs();
-            var diagId = dialogs.getDialogId('flm-create-share');
-            let table = theWebUI.getTable("fsh");
+            var diagId = dialogs.getCurrentDialog();
 
             const multiple = flm.ui.filenav.selectedEntries.length > 1;
-
             multiple && dialogs.createDirBrowser(diagId, true);
+            let files = multiple ? dialogs.getCheckList(diagId) : [dialogs.dirBrowserInput(diagId)];
 
-            dialogs.onStart(function () {
-                var file = dialogs.dirBrowserInput(diagId).val();
-                return flm.share.add(multiple ? dialogs.getCheckList(diagId) : [dialogs.dirBrowserInput(diagId)],
-                    $('#FS_password'), $('#FS_duration'))
-                    .then((r) => {
-                        var link = table.getValueById(thePlugins.get('filemanager-share').table.getEntryId(r.new), 'link');
-                        return {
-                            notify: [theUILang.FSlinkcreate + ': ' + file + ' -> ' + link]
-                        };
-                    });
-            });
+            dialogs.onStart(() => flm.share.add(files, $('#FS_password'), $('#FS_duration')));
         })();
     </script>
 {% endblock %}

@@ -6,6 +6,8 @@ $theSettings->registerEventHook($plugin["name"], "File_move", 10, true);
 
 $theSettings->registerPlugin($plugin["name"]);
 
-unset($config['key']);
+
+if(!empty($config['key'])) {unset($config['key']);}
 
 $jResult .= 'plugin.config = ' . json_encode($config) . ';';
+
