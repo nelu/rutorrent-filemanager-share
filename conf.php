@@ -3,13 +3,13 @@
 // 0 = unlimited
 
 // max expire time for a share in hours
-$limits['duration'] = $_ENV['RU_FLM_SHARE_MAX_DURATION'] ?? 0; // 0 - unlimited
+$conf['duration'] = $_ENV['RU_FLM_SHARE_MAX_DURATION'] ?? 1; // 0 - unlimited
 
 // max links per user
-$limits['links'] = $_ENV['RU_FLM_SHARE_MAX_LINKS'] ?? 0; // 0 - unlimited
+$conf['links'] = $_ENV['RU_FLM_SHARE_MAX_LINKS'] ?? 0; // 0 - unlimited
 
 return [
-    'limits' => $limits,
+    'limits' => $conf,
 
     // whether a password is mandatory for link creation
     'require_password' => false,
@@ -22,7 +22,7 @@ return [
     'endpoint' => $_ENV['RU_FLM_SHARE_ENDPOINT'] ?? '',
 
     // key used for storing encrypted data
-    "key" => $_ENV['RU_FLM_SHARE_KEY'] ?? "mycu570m3ncryp710nk3y",
+    "key" => $_ENV['RU_FLM_SHARE_KEY'] ?? "",
 
     // automatically remove shares - only when removing the file or the containing directory
     "remove_share_on_file_delete" => false,

@@ -74,64 +74,68 @@ class FileManagerShare extends WebController
      */
     public function add($params)
     {
-        $duration = $params->duration;
-        $password = $params->pass;
-        global $limits;
+        $conf = $this->config();
+        $duration = (int)$params->duration;
+        $password = (string)$params->pass;
+        $files = (array)$params->files;
 
-        $file = $this->flm->currentDir($params->target);
-        $fpath = $this->flm()->getFsPath($file);
-
-        if (($stat = LFS::stat($fpath)) === FALSE) {
-            throw new Exception('Invalid file: ' . $file);
+        if ($duration == 0 && intval($conf->limits['duration']) != 0) {
+            throw new Exception('FSnolimitoff', 102);
         }
 
-        if (intval($params->duration) == 0 && intval($limits['duration']) != 0) {
-            throw new Exception('No limit not allowed');
+        if (empty($password) && $conf->require_password) {
+            throw new Exception('Password is required');
         }
 
         if ($this->islimited('duration', $duration)) {
             throw new Exception('Invalid duration');
         }
 
-        if ($this->islimited('links', count((array)$this->getShares()))) {
+        if ($this->islimited('links', count((array)$this->getShares()) + count($files))) {
             throw new Exception('Link limit reached');
         }
-        $duration = intval($params->duration);
-        if ($password === FALSE) {
-            $password = '';
+
+        $currentUser = User::getUser();
+        $token = null;
+
+        foreach ($files as $file) {
+
+            $file = $this->flm->currentDir($file);
+            $fpath = $this->flm()->getFsPath($file);
+
+            if (($stat = LFS::stat($fpath)) === FALSE) {
+                throw new Exception('Invalid file: ' . $file, 6);
+            }
+
+            do {
+                $token = Crypt::randomChars();
+            } while ($this->read(self::getStoreFile($token)));
+
+            !empty($password) && Crypt::setEncryptionKey($password);
+
+            $this->encoder->setString(json_encode(['u' => $currentUser]));
+
+            $now = time();
+            $this->data = [
+                'file' => $file,
+                'size' => $stat['size'],
+                'created' => $now,
+                'expire' => ($duration > 0) ? $now + (3600 * $duration) : 0,
+                'hasPass' => !empty($password),
+                'downloads' => 0,
+                'credentials' => $this->encoder->getEncoded()
+            ];
+
+            $this->write($token);
         }
-
-        do {
-            $token = Crypt::randomChars();
-        } while ($this->read(self::getStoreFile($token)));
-
-        if ($password) {
-            Crypt::setEncryptionKey($password);
-        }
-
-        $this->encoder->setString(json_encode(['u' => User::getUser()]));
-
-        $now = time();
-        $this->data = [
-            'file' => $file,
-            'size' => $stat['size'],
-            'created' => $now,
-            'expire' => ($duration > 0) ? $now + (3600 * $duration) : 0,
-            'hasPass' => !empty($password),
-            'downloads' => 0,
-            'credentials' => $this->encoder->getEncoded()
-        ];
-
-        $this->write($token);
 
         return array_merge($this->show(), ['error' => 0, 'new' => $this->getStoreFile($token)]);
     }
 
-    public function islimited($max, $cur)
+    public function islimited($name, $cur)
     {
-        global $limits;
-
-        return ($limits[$max]) ? (($cur <= $limits[$max]) ? false : true) : false;
+        $conf = $this->config()->limits;
+        return ($conf[$name]) ? (($cur <= $conf[$name]) ? false : true) : false;
     }
 
     public function getShares(): array
@@ -298,14 +302,14 @@ class FileManagerShare extends WebController
 
     public function edit($id, $duration, $password)
     {
-        global $limits;
+        global $conf;
 
         if (!isset($this->data[$id])) {
             die('Invalid link');
         }
 
         if ($duration !== FALSE) {
-            if ($limits['nolimit'] == 0) {
+            if ($conf['nolimit'] == 0) {
                 if ($duration == 0) {
                     die('No limit not allowed');
                 }
